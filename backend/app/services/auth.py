@@ -167,27 +167,59 @@ def get_current_user(
     FastAPI dependency for authenticating the current user.
     Enforces signed Bearer token authentication in production.
     Gated fallback for automated test suite when AUTH_DEV_MODE=true.
+
+    SECURITY INVARIANT:
+    If an Authorization header is present (in ANY form), we MUST validate it
+    as a Bearer token. We NEVER fall back to X-User-Id, X-User-Email, or demo
+    user when an Authorization header was provided. This closes the bypass where
+    a non-Bearer or invalid-format Authorization header could silently fall through
+    to DEV mode identity resolution.
+
+    DEV/TEST fallbacks are ONLY triggered when Authorization header is
+    completely absent AND AUTH_DEV_MODE=true.
     """
-    # 1. Check for Authorization: Bearer <token>
-    if authorization and authorization.strip().startswith("Bearer "):
-        token = authorization.strip().split("Bearer ", 1)[1].strip()
+    # ── Path 1: Authorization header is PRESENT ──────────────────────────────
+    # Whether Bearer, Basic, or anything else — we must validate it or reject.
+    # NEVER fall to DEV fallbacks when this header exists.
+    if authorization is not None:
+        auth_stripped = authorization.strip()
+
+        # Require "Bearer <token>" format exactly
+        if not auth_stripped.startswith("Bearer "):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authorization format. Use: Authorization: Bearer <token>",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        token = auth_stripped[len("Bearer "):].strip()
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Bearer token is empty.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        # verify_token raises HTTP 401 on any failure (invalid sig, expired, wrong type)
         payload = verify_token(token)
+
         user_id_str = payload.get("sub")
         if not user_id_str:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing user identifier in token")
-        
+
         try:
             user_id = int(user_id_str)
         except ValueError:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Malformed user identifier in token")
-        
+
         user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
         if not user:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User account not found or deactivated")
-        
+
         return user
 
-    # 2. If no valid Bearer token is provided, check if AUTH_DEV_MODE is enabled
+    # ── Path 2: Authorization header is COMPLETELY ABSENT ────────────────────
+    # DEV/TEST fallbacks are allowed only here and only when AUTH_DEV_MODE=true.
     if is_auth_dev_mode():
         # Dev / Test fallback: X-User-Id header
         x_user_id = request.headers.get("X-User-Id")

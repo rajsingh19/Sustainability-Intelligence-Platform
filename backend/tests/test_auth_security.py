@@ -458,3 +458,142 @@ def test_copilot_context_and_agent_cross_user_isolation(db_session, test_users, 
         headers={"Authorization": f"Bearer {test_users['token_b']}"}
     )
     assert resp_agent_b.status_code == 200
+
+
+# ===========================================================================
+# 9. Authorization Header Hardening — 5 Required Regression Cases
+# ===========================================================================
+
+def test_case1_valid_token_wins_over_conflicting_x_user_id(monkeypatch, test_users):
+    """
+    Case 1: Authorization: Bearer VALID_TOKEN_A  +  X-User-Id: B  →  authenticate as A
+
+    A valid bearer token must always win. X-User-Id header must be completely ignored.
+    """
+    monkeypatch.setenv("AUTH_DEV_MODE", "true")  # DEV mode ON to confirm header is still ignored
+    client = TestClient(app)
+
+    resp = client.get(
+        "/api/auth/me",
+        headers={
+            "Authorization": f"Bearer {test_users['token_a']}",
+            "X-User-Id": str(test_users["user_b"].id),
+        }
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["id"] == test_users["user_a"].id, (
+        f"Expected User A (id={test_users['user_a'].id}) but got id={data['id']}"
+    )
+    assert data["email"] == test_users["user_a"].email
+
+
+def test_case2_invalid_token_plus_x_user_id_returns_401(monkeypatch, test_users):
+    """
+    Case 2: Authorization: Bearer INVALID_TOKEN  +  X-User-Id: B  →  401
+
+    An invalid bearer token must never fall back to X-User-Id.
+    The Authorization header presence gates the entire decision; once present,
+    any failure must return 401 unconditionally.
+    """
+    monkeypatch.setenv("AUTH_DEV_MODE", "true")  # DEV mode ON — fallback must still be blocked
+    client = TestClient(app)
+
+    resp = client.get(
+        "/api/auth/me",
+        headers={
+            "Authorization": "Bearer this.is.an.invalid.token",
+            "X-User-Id": str(test_users["user_b"].id),
+        }
+    )
+    assert resp.status_code == 401, (
+        f"Expected 401 for invalid token but got {resp.status_code}: {resp.json()}"
+    )
+
+
+def test_case3_expired_token_plus_x_user_email_returns_401(monkeypatch, test_users):
+    """
+    Case 3: Authorization: Bearer EXPIRED_TOKEN  +  X-User-Email: B  →  401
+
+    An expired bearer token must never fall back to X-User-Email.
+    """
+    monkeypatch.setenv("AUTH_DEV_MODE", "true")  # DEV mode ON — fallback must still be blocked
+
+    expired_token = create_access_token(
+        test_users["user_a"].id,
+        email=test_users["user_a"].email,
+        role=test_users["user_a"].role,
+        expires_in_seconds=-30,  # already expired
+    )
+    client = TestClient(app)
+
+    resp = client.get(
+        "/api/auth/me",
+        headers={
+            "Authorization": f"Bearer {expired_token}",
+            "X-User-Email": test_users["user_b"].email,
+        }
+    )
+    assert resp.status_code == 401, (
+        f"Expected 401 for expired token but got {resp.status_code}: {resp.json()}"
+    )
+
+
+def test_case4_no_auth_header_dev_mode_uses_x_user_id(monkeypatch, test_users):
+    """
+    Case 4: No Authorization header  +  X-User-Id: B  +  AUTH_DEV_MODE=true  →  DEV/TEST user B
+
+    When Authorization header is completely absent and DEV mode is on, X-User-Id fallback works.
+    """
+    monkeypatch.setenv("AUTH_DEV_MODE", "true")
+    client = TestClient(app)
+
+    resp = client.get(
+        "/api/auth/me",
+        headers={"X-User-Id": str(test_users["user_b"].id)}
+        # Note: No "Authorization" header
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["id"] == test_users["user_b"].id, (
+        f"Expected User B (id={test_users['user_b'].id}) via X-User-Id but got id={data['id']}"
+    )
+
+
+def test_case5_no_auth_header_prod_mode_returns_401(monkeypatch):
+    """
+    Case 5: No Authorization header  +  AUTH_DEV_MODE=false  →  401
+
+    With no Authorization header and production mode, all requests must be rejected.
+    """
+    monkeypatch.setenv("AUTH_DEV_MODE", "false")
+    client = TestClient(app)
+
+    resp = client.get("/api/auth/me")
+    assert resp.status_code == 401, (
+        f"Expected 401 with no auth in prod mode but got {resp.status_code}: {resp.json()}"
+    )
+
+
+def test_non_bearer_authorization_format_returns_401(monkeypatch, test_users):
+    """
+    Bonus: Authorization: Basic dXNlcjpwYXNz  →  401
+
+    Non-Bearer Authorization schemes must be rejected immediately.
+    They must NEVER fall through to DEV-mode fallbacks regardless of AUTH_DEV_MODE.
+    This verifies the fix to the original bypass where a non-"Bearer " header
+    would silently be treated as absent.
+    """
+    monkeypatch.setenv("AUTH_DEV_MODE", "true")  # DEV mode ON — must still be blocked
+    client = TestClient(app)
+
+    resp = client.get(
+        "/api/auth/me",
+        headers={
+            "Authorization": "Basic dXNlcjpwYXNz",  # base64("user:pass")
+            "X-User-Id": str(test_users["user_a"].id),
+        }
+    )
+    assert resp.status_code == 401, (
+        f"Expected 401 for non-Bearer Authorization but got {resp.status_code}: {resp.json()}"
+    )
