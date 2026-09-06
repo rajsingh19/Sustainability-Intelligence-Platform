@@ -75,7 +75,8 @@ export default function CarbonDashboard({ onNavigate }) {
   const fetchDocumentsList = async () => {
     try {
       const res = await getDocuments();
-      setDocuments(res.items || res || []);
+      const docList = Array.isArray(res) ? res : (res?.documents || res?.items || []);
+      setDocuments(docList);
     } catch (err) {
       console.error("Failed to load documents list", err);
     }
@@ -226,7 +227,7 @@ export default function CarbonDashboard({ onNavigate }) {
           className="border border-slate-300 rounded-lg px-3 py-1.5 bg-white text-slate-700 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0F6B56]/20 focus:border-[#0F6B56] max-w-xs"
         >
           <option value="">All Documents</option>
-          {documents.map(d => (
+          {(Array.isArray(documents) ? documents : []).map(d => (
             <option key={d.id} value={d.id}>Doc #{d.id} - {d.company_name || d.original_filename || d.filename}</option>
           ))}
         </select>
@@ -247,6 +248,15 @@ export default function CarbonDashboard({ onNavigate }) {
           <span>{error}</span>
         </div>
       )}
+
+      {loading && !data ? (
+        <div className="bg-white p-12 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center justify-center text-center py-16">
+          <RefreshCw className="w-8 h-8 animate-spin text-[#0F6B56] mb-3" />
+          <p className="text-sm font-semibold text-slate-700">Loading carbon footprint analytics...</p>
+          <p className="text-xs text-slate-400 mt-1">Aggregating posted ledger emissions and historical trends</p>
+        </div>
+      ) : (
+        <>
 
       {/* AI Agent Highlight Card */}
       {agentBrief && (
@@ -485,11 +495,11 @@ export default function CarbonDashboard({ onNavigate }) {
             </div>
 
             {/* Trend Points or Single Period Banner */}
-            {data?.trends?.periods?.length === 0 ? (
+            {(!data?.trends?.periods || data.trends.periods.length === 0) ? (
               <div className="p-8 text-center text-slate-500 bg-slate-50 rounded-lg border border-slate-100">
                 No historical reporting periods posted in ledger.
               </div>
-            ) : data?.trends?.periods?.length === 1 ? (
+            ) : data.trends.periods.length === 1 ? (
               <div className="space-y-4">
                 <div className="p-6 bg-slate-50 rounded-xl border border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div>
@@ -497,10 +507,10 @@ export default function CarbonDashboard({ onNavigate }) {
                       Single Available Period
                     </div>
                     <div className="text-2xl font-bold text-slate-900">
-                      {data.trends.periods[0].reporting_period}
+                      {data.trends.periods[0]?.reporting_period}
                     </div>
                     <div className="text-sm text-slate-600 mt-0.5">
-                      Posted footprint: <span className="font-semibold text-[#0F6B56]">{formatT(data.trends.periods[0].total_co2e_t)}</span> ({data.trends.periods[0].entry_count} entries)
+                      Posted footprint: <span className="font-semibold text-[#0F6B56]">{formatT(data.trends.periods[0]?.total_co2e_t)}</span> ({data.trends.periods[0]?.entry_count || 0} entries)
                     </div>
                   </div>
                   <div className="px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs font-medium flex items-center gap-2 max-w-sm">
@@ -512,15 +522,15 @@ export default function CarbonDashboard({ onNavigate }) {
                 <div className="grid grid-cols-3 gap-3 text-center">
                   <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
                     <span className="text-xs text-slate-500 block">Scope 1</span>
-                    <span className="text-sm font-bold text-slate-800">{formatT(data.trends.periods[0].scope_1_t)}</span>
+                    <span className="text-sm font-bold text-slate-800">{formatT(data.trends.periods[0]?.scope_1_t)}</span>
                   </div>
                   <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
                     <span className="text-xs text-slate-500 block">Scope 2</span>
-                    <span className="text-sm font-bold text-slate-800">{formatT(data.trends.periods[0].scope_2_t)}</span>
+                    <span className="text-sm font-bold text-slate-800">{formatT(data.trends.periods[0]?.scope_2_t)}</span>
                   </div>
                   <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
                     <span className="text-xs text-slate-500 block">Scope 3</span>
-                    <span className="text-sm font-bold text-slate-800">{formatT(data.trends.periods[0].scope_3_t)}</span>
+                    <span className="text-sm font-bold text-slate-800">{formatT(data.trends.periods[0]?.scope_3_t)}</span>
                   </div>
                 </div>
               </div>
@@ -539,7 +549,7 @@ export default function CarbonDashboard({ onNavigate }) {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {data.trends.periods.map(p => (
+                      {data?.trends?.periods?.map(p => (
                         <tr key={p.reporting_period} className="hover:bg-slate-50">
                           <td className="py-2.5 font-semibold text-slate-900">{p.reporting_period}</td>
                           <td className="py-2.5 font-bold text-[#0F6B56]">{formatT(p.total_co2e_t)}</td>
@@ -555,8 +565,8 @@ export default function CarbonDashboard({ onNavigate }) {
 
                 {data?.trends?.comparison?.comparison_available && (
                   <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-900 flex items-center justify-between">
-                    <span className="font-semibold">{data.trends.comparison.message}</span>
-                    {data.trends.comparison.percentage_change !== null && (
+                    <span className="font-semibold">{data?.trends?.comparison?.message}</span>
+                    {data?.trends?.comparison?.percentage_change !== null && data?.trends?.comparison?.percentage_change !== undefined && (
                       <span className="font-bold">
                         {data.trends.comparison.percentage_change > 0 ? `+${data.trends.comparison.percentage_change}%` : `${data.trends.comparison.percentage_change}%`}
                       </span>
@@ -916,6 +926,8 @@ export default function CarbonDashboard({ onNavigate }) {
           </div>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 }

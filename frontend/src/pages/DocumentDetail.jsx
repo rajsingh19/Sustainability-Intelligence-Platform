@@ -28,7 +28,8 @@ import {
   Compass,
   ArrowRight,
   AlertCircle,
-  Clock
+  Clock,
+  RefreshCw
 } from 'lucide-react';
 import ExtractionTable from '../components/ExtractionTable';
 import EvidenceSection from '../components/EvidenceSection';

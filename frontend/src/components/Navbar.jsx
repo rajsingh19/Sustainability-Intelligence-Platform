@@ -11,23 +11,23 @@ export default function Navbar({ activeTab, onSelectTab, health, onSeedSample, i
         <div className="flex items-center justify-between h-14">
           
           {/* Left: Brand & Navigation */}
-          <div className="flex items-center space-x-6">
+          <div className="flex items-center space-x-4 min-w-0 flex-1 mr-3">
             <div 
               onClick={() => onSelectTab('documents')}
-              className="flex items-center space-x-2.5 cursor-pointer select-none"
+              className="flex items-center space-x-2.5 cursor-pointer select-none shrink-0"
             >
               <div className="w-7 h-7 rounded-md bg-[#0F6B56] text-white flex items-center justify-center font-bold text-sm shadow-2xs">
                 S
               </div>
-              <span className="font-bold text-slate-900 text-sm tracking-tight">
+              <span className="font-bold text-slate-900 text-sm tracking-tight hidden sm:inline">
                 Senseible Document Extractor
               </span>
             </div>
 
-            <nav className="flex space-x-1 pl-2">
+            <nav className="flex items-center space-x-1 pl-1 overflow-x-auto no-scrollbar scroll-smooth py-1">
               <button
                 onClick={() => onSelectTab('documents')}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
                   activeTab === 'documents'
                     ? 'bg-[#EAF7F2] text-[#0F6B56]'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -39,7 +39,7 @@ export default function Navbar({ activeTab, onSelectTab, health, onSeedSample, i
 
               <button
                 onClick={() => onSelectTab('metrics')}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
                   activeTab === 'metrics'
                     ? 'bg-[#EAF7F2] text-[#0F6B56]'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -51,7 +51,7 @@ export default function Navbar({ activeTab, onSelectTab, health, onSeedSample, i
 
               <button
                 onClick={() => onSelectTab('emission-factors')}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
                   activeTab === 'emission-factors'
                     ? 'bg-[#EAF7F2] text-[#0F6B56]'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -63,7 +63,7 @@ export default function Navbar({ activeTab, onSelectTab, health, onSeedSample, i
 
               <button
                 onClick={() => onSelectTab('activity-data')}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
                   activeTab === 'activity-data'
                     ? 'bg-[#EAF7F2] text-[#0F6B56]'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -75,7 +75,7 @@ export default function Navbar({ activeTab, onSelectTab, health, onSeedSample, i
 
               <button
                 onClick={() => onSelectTab('carbon-dashboard')}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
                   activeTab === 'carbon-dashboard'
                     ? 'bg-[#EAF7F2] text-[#0F6B56]'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -87,7 +87,7 @@ export default function Navbar({ activeTab, onSelectTab, health, onSeedSample, i
 
               <button
                 onClick={() => onSelectTab('forecast')}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
                   activeTab === 'forecast'
                     ? 'bg-[#EAF7F2] text-[#0F6B56]'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -99,7 +99,7 @@ export default function Navbar({ activeTab, onSelectTab, health, onSeedSample, i
 
               <button
                 onClick={() => onSelectTab('reduction-intelligence')}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
                   activeTab === 'reduction-intelligence'
                     ? 'bg-[#EAF7F2] text-[#0F6B56]'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -111,7 +111,7 @@ export default function Navbar({ activeTab, onSelectTab, health, onSeedSample, i
 
               <button
                 onClick={() => onSelectTab('reduction-roadmap')}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
                   activeTab === 'reduction-roadmap'
                     ? 'bg-[#EAF7F2] text-[#0F6B56]'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -123,7 +123,7 @@ export default function Navbar({ activeTab, onSelectTab, health, onSeedSample, i
 
               <button
                 onClick={() => onSelectTab('emission-scenarios')}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
                   activeTab === 'emission-scenarios'
                     ? 'bg-[#EAF7F2] text-[#0F6B56]'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -135,7 +135,7 @@ export default function Navbar({ activeTab, onSelectTab, health, onSeedSample, i
 
               <button
                 onClick={() => onSelectTab('industry-benchmarks')}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
                   activeTab === 'industry-benchmarks'
                     ? 'bg-[#EAF7F2] text-[#0F6B56]'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -147,7 +147,7 @@ export default function Navbar({ activeTab, onSelectTab, health, onSeedSample, i
 
               <button
                 onClick={() => onSelectTab('ai-agent')}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
                   activeTab === 'ai-agent'
                     ? 'bg-[#EAF7F2] text-[#0F6B56]'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -159,7 +159,7 @@ export default function Navbar({ activeTab, onSelectTab, health, onSeedSample, i
 
               <button
                 onClick={() => onSelectTab('reduction-opportunities')}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
                   activeTab === 'reduction-opportunities'
                     ? 'bg-[#EAF7F2] text-[#0F6B56]'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -169,10 +169,9 @@ export default function Navbar({ activeTab, onSelectTab, health, onSeedSample, i
                 <span>Opportunities</span>
               </button>
 
-
               <button
                 onClick={() => onSelectTab('reduction-projects')}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
                   activeTab === 'reduction-projects'
                     ? 'bg-[#EAF7F2] text-[#0F6B56]'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -184,7 +183,7 @@ export default function Navbar({ activeTab, onSelectTab, health, onSeedSample, i
 
               <button
                 onClick={() => onSelectTab('compliance-reports')}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
                   activeTab === 'compliance-reports' || activeTab === 'compliance-report-detail'
                     ? 'bg-[#EAF7F2] text-[#0F6B56]'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -196,7 +195,7 @@ export default function Navbar({ activeTab, onSelectTab, health, onSeedSample, i
 
               <button
                 onClick={() => onSelectTab('green-finance')}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
                   activeTab === 'green-finance' || activeTab === 'green-finance-detail'
                     ? 'bg-[#EAF7F2] text-[#0F6B56]'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -208,7 +207,7 @@ export default function Navbar({ activeTab, onSelectTab, health, onSeedSample, i
 
               <button
                 onClick={() => onSelectTab('carbon-credit')}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
                   activeTab === 'carbon-credit' || activeTab === 'carbon-credit-detail'
                     ? 'bg-[#EAF7F2] text-[#0F6B56]'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -218,11 +217,9 @@ export default function Navbar({ activeTab, onSelectTab, health, onSeedSample, i
                 <span>Carbon Credits</span>
               </button>
 
-
-
               <button
                 onClick={() => onSelectTab('carbon-calculations')}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
                   activeTab === 'carbon-calculations'
                     ? 'bg-[#EAF7F2] text-[#0F6B56]'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -234,7 +231,7 @@ export default function Navbar({ activeTab, onSelectTab, health, onSeedSample, i
 
               <button
                 onClick={() => onSelectTab('carbon-ledger')}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
                   activeTab === 'carbon-ledger'
                     ? 'bg-[#EAF7F2] text-[#0F6B56]'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -247,7 +244,7 @@ export default function Navbar({ activeTab, onSelectTab, health, onSeedSample, i
           </div>
 
           {/* Right: Sample PDFs & System Online */}
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3 shrink-0">
             {onSeedSample && (
               <div className="hidden lg:flex items-center space-x-1.5 text-xs">
                 <span className="text-slate-400 text-[11px] font-medium mr-1">Sample PDFs:</span>

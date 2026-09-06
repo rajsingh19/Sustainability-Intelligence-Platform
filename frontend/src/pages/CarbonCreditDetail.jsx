@@ -20,7 +20,8 @@ import {
   Calendar,
   Lock,
   ArrowRight,
-  FileText
+  FileText,
+  Sparkles
 } from 'lucide-react';
 import { 
   getCarbonCreditAssessment, 

@@ -382,6 +382,10 @@ export default function App() {
 
   const handleNavTab = (tab) => {
     setSelectedDocument(null);
+    setReportDocId(null);
+    setComplianceReportId(null);
+    setGreenFinanceAssessmentId(null);
+    setCarbonCreditAssessmentId(null);
     setActiveTab(tab);
     if (tab === 'ai-agent') {
       window.history.pushState(null, '', '/agent');

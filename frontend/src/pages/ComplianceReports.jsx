@@ -13,7 +13,8 @@ import {
   Calendar, 
   Filter,
   ExternalLink,
-  Info
+  Info,
+  ChevronRight
 } from 'lucide-react';
 import { 
   getComplianceReports, 
