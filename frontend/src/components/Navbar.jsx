@@ -1,22 +1,116 @@
-import React, { useState } from 'react';
-import { FileText, BarChart3, Activity, X, ShieldCheck, Database, Cpu, Sparkles, Layers, Calculator, BookOpen, Lightbulb, FolderKanban, Award, TrendingUp, Target, Sliders } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  FileText,
+  BarChart3,
+  Activity,
+  X,
+  ShieldCheck,
+  Database,
+  Cpu,
+  Sparkles,
+  Layers,
+  Calculator,
+  BookOpen,
+  Lightbulb,
+  FolderKanban,
+  Award,
+  TrendingUp,
+  Target,
+  Sliders,
+  ChevronDown,
+  Menu,
+  FileSpreadsheet,
+  CheckCircle2,
+  Bot,
+  ExternalLink,
+  HelpCircle,
+  FileCheck
+} from 'lucide-react';
+import { NAV_GROUPS, getActiveGroupId } from '../config/navigation';
 
+// Icon Map for dynamic icons in dropdown items
+const ICON_MAP = {
+  FileText,
+  BarChart3,
+  Award,
+  Lightbulb,
+  TrendingUp,
+  Target,
+  Layers,
+  Sliders,
+  Database,
+  Calculator,
+  BookOpen,
+  ShieldCheck,
+  FolderKanban,
+};
 
-export default function Navbar({ activeTab, onSelectTab, health, onSeedSample, isSeeding }) {
+export default function Navbar({
+  activeTab,
+  onSelectTab,
+  health,
+  onSeedSample,
+  isSeeding,
+  onOpenAiDrawer
+}) {
+  const [openDropdown, setOpenDropdown] = useState(null);
+  const [showSampleDropdown, setShowSampleDropdown] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileExpandedGroup, setMobileExpandedGroup] = useState(null);
+
+  const navRef = useRef(null);
+  const activeGroupId = getActiveGroupId(activeTab);
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (navRef.current && !navRef.current.contains(event.target)) {
+        setOpenDropdown(null);
+        setShowSampleDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Close dropdowns on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setOpenDropdown(null);
+        setShowSampleDropdown(false);
+        setMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const handleNavClick = (item) => {
+    setOpenDropdown(null);
+    setMobileMenuOpen(false);
+    onSelectTab(item.tab || item.id);
+  };
+
+  const handleGroupToggle = (groupId) => {
+    setOpenDropdown((prev) => (prev === groupId ? null : groupId));
+    setShowSampleDropdown(false);
+  };
 
   return (
-    <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
+    <header ref={navRef} className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-2xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14">
           
-          {/* Left: Brand & Navigation */}
-          <div className="flex items-center space-x-4 min-w-0 flex-1 mr-3">
-            <div 
+          {/* Brand & Left Navigation */}
+          <div className="flex items-center space-x-6 min-w-0">
+            {/* Logo */}
+            <div
               onClick={() => onSelectTab('documents')}
-              className="flex items-center space-x-2.5 cursor-pointer select-none shrink-0"
+              className="flex items-center space-x-2.5 cursor-pointer select-none shrink-0 group"
             >
-              <div className="w-7 h-7 rounded-md bg-[#0F6B56] text-white flex items-center justify-center font-bold text-sm shadow-2xs">
+              <div className="w-7 h-7 rounded-md bg-[#0F6B56] text-white flex items-center justify-center font-bold text-sm shadow-2xs group-hover:bg-[#0c5947] transition-colors">
                 S
               </div>
               <span className="font-bold text-slate-900 text-sm tracking-tight hidden sm:inline">
@@ -24,277 +118,302 @@ export default function Navbar({ activeTab, onSelectTab, health, onSeedSample, i
               </span>
             </div>
 
-            <nav className="flex items-center space-x-1 pl-1 overflow-x-auto no-scrollbar scroll-smooth py-1">
-              <button
-                onClick={() => onSelectTab('documents')}
-                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-                  activeTab === 'documents'
-                    ? 'bg-[#EAF7F2] text-[#0F6B56]'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                <FileText className="w-3.5 h-3.5" />
-                <span>Documents</span>
-              </button>
+            {/* Desktop Navigation Groups */}
+            <nav className="hidden md:flex items-center space-x-1">
+              {NAV_GROUPS.map((group) => {
+                if (group.type === 'link') {
+                  const isActive = activeGroupId === group.id || activeTab === group.tab;
+                  return (
+                    <button
+                      key={group.id}
+                      onClick={() => handleNavClick(group)}
+                      className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                        isActive
+                          ? 'bg-[#EAF7F2] text-[#0F6B56]'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                      }`}
+                    >
+                      {group.id === 'documents' && <FileText className="w-3.5 h-3.5" />}
+                      {group.id === 'ai-assistant' && <Sparkles className="w-3.5 h-3.5 text-[#0F6B56]" />}
+                      <span>{group.label}</span>
+                    </button>
+                  );
+                }
 
-              <button
-                onClick={() => onSelectTab('metrics')}
-                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-                  activeTab === 'metrics'
-                    ? 'bg-[#EAF7F2] text-[#0F6B56]'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                <BarChart3 className="w-3.5 h-3.5" />
-                <span>Metrics</span>
-              </button>
+                // Dropdown Group
+                const isGroupActive = activeGroupId === group.id;
+                const isDropdownOpen = openDropdown === group.id;
 
-              <button
-                onClick={() => onSelectTab('emission-factors')}
-                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-                  activeTab === 'emission-factors'
-                    ? 'bg-[#EAF7F2] text-[#0F6B56]'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                <Database className="w-3.5 h-3.5" />
-                <span>Emission Factors</span>
-              </button>
+                return (
+                  <div key={group.id} className="relative">
+                    <button
+                      onClick={() => handleGroupToggle(group.id)}
+                      className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1 ${
+                        isGroupActive
+                          ? 'bg-[#EAF7F2] text-[#0F6B56]'
+                          : isDropdownOpen
+                          ? 'bg-slate-100 text-slate-900'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                      }`}
+                      aria-expanded={isDropdownOpen}
+                    >
+                      <span>{group.label}</span>
+                      <ChevronDown
+                        className={`w-3.5 h-3.5 transition-transform duration-150 ${
+                          isDropdownOpen ? 'rotate-180 text-slate-900' : 'text-slate-400'
+                        }`}
+                      />
+                    </button>
 
-              <button
-                onClick={() => onSelectTab('activity-data')}
-                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-                  activeTab === 'activity-data'
-                    ? 'bg-[#EAF7F2] text-[#0F6B56]'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                <Layers className="w-3.5 h-3.5" />
-                <span>Activity Data</span>
-              </button>
+                    {/* Dropdown Menu */}
+                    {isDropdownOpen && (
+                      <div className="absolute left-0 top-full mt-1.5 w-72 bg-white border border-slate-200 rounded-xl shadow-lg z-50 p-1.5 animate-dropdown space-y-0.5">
+                        {group.items.map((item) => {
+                          const isItemActive = activeTab === item.tab || activeTab === item.id;
+                          const IconComponent = ICON_MAP[item.icon] || FileText;
 
-              <button
-                onClick={() => onSelectTab('carbon-dashboard')}
-                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-                  activeTab === 'carbon-dashboard'
-                    ? 'bg-[#EAF7F2] text-[#0F6B56]'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                <BarChart3 className="w-3.5 h-3.5" />
-                <span>Carbon Footprint</span>
-              </button>
-
-              <button
-                onClick={() => onSelectTab('forecast')}
-                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-                  activeTab === 'forecast'
-                    ? 'bg-[#EAF7F2] text-[#0F6B56]'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                <TrendingUp className="w-3.5 h-3.5" />
-                <span>Forecast</span>
-              </button>
-
-              <button
-                onClick={() => onSelectTab('reduction-intelligence')}
-                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-                  activeTab === 'reduction-intelligence'
-                    ? 'bg-[#EAF7F2] text-[#0F6B56]'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                <Target className="w-3.5 h-3.5" />
-                <span>Reduction Intelligence</span>
-              </button>
-
-              <button
-                onClick={() => onSelectTab('reduction-roadmap')}
-                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-                  activeTab === 'reduction-roadmap'
-                    ? 'bg-[#EAF7F2] text-[#0F6B56]'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                <Layers className="w-3.5 h-3.5" />
-                <span>Roadmap</span>
-              </button>
-
-              <button
-                onClick={() => onSelectTab('emission-scenarios')}
-                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-                  activeTab === 'emission-scenarios'
-                    ? 'bg-[#EAF7F2] text-[#0F6B56]'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                <Sliders className="w-3.5 h-3.5" />
-                <span>Scenarios</span>
-              </button>
-
-              <button
-                onClick={() => onSelectTab('industry-benchmarks')}
-                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-                  activeTab === 'industry-benchmarks'
-                    ? 'bg-[#EAF7F2] text-[#0F6B56]'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                <BarChart3 className="w-3.5 h-3.5 text-[#0F6B56]" />
-                <span>Industry Intelligence</span>
-              </button>
-
-              <button
-                onClick={() => onSelectTab('ai-agent')}
-                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-                  activeTab === 'ai-agent'
-                    ? 'bg-[#EAF7F2] text-[#0F6B56]'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                <Sparkles className="w-3.5 h-3.5 text-[#0F6B56]" />
-                <span>AI Agent</span>
-              </button>
-
-              <button
-                onClick={() => onSelectTab('reduction-opportunities')}
-                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-                  activeTab === 'reduction-opportunities'
-                    ? 'bg-[#EAF7F2] text-[#0F6B56]'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                <Lightbulb className="w-3.5 h-3.5" />
-                <span>Opportunities</span>
-              </button>
-
-              <button
-                onClick={() => onSelectTab('reduction-projects')}
-                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-                  activeTab === 'reduction-projects'
-                    ? 'bg-[#EAF7F2] text-[#0F6B56]'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                <FolderKanban className="w-3.5 h-3.5" />
-                <span>Projects</span>
-              </button>
-
-              <button
-                onClick={() => onSelectTab('compliance-reports')}
-                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-                  activeTab === 'compliance-reports' || activeTab === 'compliance-report-detail'
-                    ? 'bg-[#EAF7F2] text-[#0F6B56]'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                <FileText className="w-3.5 h-3.5" />
-                <span>Compliance Reports</span>
-              </button>
-
-              <button
-                onClick={() => onSelectTab('green-finance')}
-                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-                  activeTab === 'green-finance' || activeTab === 'green-finance-detail'
-                    ? 'bg-[#EAF7F2] text-[#0F6B56]'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Green Finance</span>
-              </button>
-
-              <button
-                onClick={() => onSelectTab('carbon-credit')}
-                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-                  activeTab === 'carbon-credit' || activeTab === 'carbon-credit-detail'
-                    ? 'bg-[#EAF7F2] text-[#0F6B56]'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                <Award className="w-3.5 h-3.5" />
-                <span>Carbon Credits</span>
-              </button>
-
-              <button
-                onClick={() => onSelectTab('carbon-calculations')}
-                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-                  activeTab === 'carbon-calculations'
-                    ? 'bg-[#EAF7F2] text-[#0F6B56]'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                <Calculator className="w-3.5 h-3.5" />
-                <span>Calculations</span>
-              </button>
-
-              <button
-                onClick={() => onSelectTab('carbon-ledger')}
-                className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-                  activeTab === 'carbon-ledger'
-                    ? 'bg-[#EAF7F2] text-[#0F6B56]'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                <BookOpen className="w-3.5 h-3.5" />
-                <span>Ledger</span>
-              </button>
+                          return (
+                            <button
+                              key={item.id}
+                              onClick={() => handleNavClick(item)}
+                              className={`w-full text-left p-2 rounded-lg transition-colors flex items-start space-x-2.5 ${
+                                isItemActive
+                                  ? 'bg-[#EAF7F2] text-[#0F6B56]'
+                                  : 'hover:bg-slate-50 text-slate-700'
+                              }`}
+                            >
+                              <div
+                                className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 mt-0.5 ${
+                                  isItemActive
+                                    ? 'bg-white text-[#0F6B56] shadow-2xs'
+                                    : 'bg-slate-100 text-slate-500'
+                                }`}
+                              >
+                                <IconComponent className="w-3.5 h-3.5" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-xs font-semibold flex items-center justify-between">
+                                  <span>{item.label}</span>
+                                  {isItemActive && (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-[#0F6B56]" />
+                                  )}
+                                </div>
+                                {item.description && (
+                                  <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">
+                                    {item.description}
+                                  </p>
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </nav>
           </div>
 
-          {/* Right: Sample PDFs & System Online */}
-          <div className="flex items-center space-x-3 shrink-0">
+          {/* Right Controls */}
+          <div className="flex items-center space-x-2.5 shrink-0">
+            {/* Global Ask AI Button */}
+            {onOpenAiDrawer && (
+              <button
+                onClick={onOpenAiDrawer}
+                className="hidden sm:inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-md bg-[#EAF7F2] hover:bg-[#d5f3e9] text-[#0F6B56] border border-[#c4eedf] text-xs font-semibold transition-colors shadow-2xs"
+                title="Open Senseible AI Assistant"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-[#0F6B56]" />
+                <span>Ask AI</span>
+              </button>
+            )}
+
+            {/* Sample PDFs Dropdown */}
             {onSeedSample && (
-              <div className="hidden lg:flex items-center space-x-1.5 text-xs">
-                <span className="text-slate-400 text-[11px] font-medium mr-1">Sample PDFs:</span>
+              <div className="relative">
                 <button
-                  onClick={() => onSeedSample('electricity')}
+                  onClick={() => {
+                    setShowSampleDropdown(!showSampleDropdown);
+                    setOpenDropdown(null);
+                  }}
                   disabled={isSeeding}
-                  className="px-2.5 py-1 bg-white hover:bg-slate-50 border border-slate-200 rounded-md text-slate-700 text-xs font-medium transition-colors disabled:opacity-50"
-                  title="Load Electricity Bill sample"
+                  className="px-2.5 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50 text-xs font-medium text-slate-700 transition-colors flex items-center space-x-1.5 disabled:opacity-50"
+                  title="Generate sample sustainability documents"
                 >
-                  Electricity Bill
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-slate-500" />
+                  <span className="hidden lg:inline">Sample PDFs</span>
+                  <ChevronDown className="w-3 h-3 text-slate-400" />
                 </button>
-                <button
-                  onClick={() => onSeedSample('esg')}
-                  disabled={isSeeding}
-                  className="px-2.5 py-1 bg-white hover:bg-slate-50 border border-slate-200 rounded-md text-slate-700 text-xs font-medium transition-colors disabled:opacity-50"
-                  title="Load ESG Audit sample"
-                >
-                  ESG Audit
-                </button>
-                <button
-                  onClick={() => onSeedSample('scanned')}
-                  disabled={isSeeding}
-                  className="px-2.5 py-1 bg-white hover:bg-slate-50 border border-slate-200 rounded-md text-slate-700 text-xs font-medium transition-colors disabled:opacity-50"
-                  title="Load Waste Manifest sample"
-                >
-                  Waste Manifest
-                </button>
+
+                {showSampleDropdown && (
+                  <div className="absolute right-0 top-full mt-1.5 w-56 bg-white border border-slate-200 rounded-xl shadow-lg z-50 p-1.5 animate-dropdown space-y-1">
+                    <div className="px-2 py-1 text-[10px] font-semibold uppercase text-slate-400">
+                      Seed Demo Documents
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowSampleDropdown(false);
+                        onSeedSample('electricity');
+                      }}
+                      disabled={isSeeding}
+                      className="w-full text-left p-2 rounded-lg hover:bg-slate-50 text-xs text-slate-700 flex items-center space-x-2"
+                    >
+                      <div className="w-5 h-5 rounded bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                        ⚡
+                      </div>
+                      <div>
+                        <div className="font-semibold text-slate-900">Electricity Bill</div>
+                        <div className="text-[10px] text-slate-500">Tata Power 48,750 kWh</div>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowSampleDropdown(false);
+                        onSeedSample('esg');
+                      }}
+                      disabled={isSeeding}
+                      className="w-full text-left p-2 rounded-lg hover:bg-slate-50 text-xs text-slate-700 flex items-center space-x-2"
+                    >
+                      <div className="w-5 h-5 rounded bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                        🌱
+                      </div>
+                      <div>
+                        <div className="font-semibold text-slate-900">ESG Audit Report</div>
+                        <div className="text-[10px] text-slate-500">Scope 1 & 2 verified metrics</div>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowSampleDropdown(false);
+                        onSeedSample('scanned');
+                      }}
+                      disabled={isSeeding}
+                      className="w-full text-left p-2 rounded-lg hover:bg-slate-50 text-xs text-slate-700 flex items-center space-x-2"
+                    >
+                      <div className="w-5 h-5 rounded bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                        📄
+                      </div>
+                      <div>
+                        <div className="font-semibold text-slate-900">Waste Manifest</div>
+                        <div className="text-[10px] text-slate-500">Scanned OCR hazardous waste</div>
+                      </div>
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
-            {/* System Status / Online Indicator */}
+            {/* System Status Pill */}
             <button
               onClick={() => setShowStatusModal(true)}
-              className="flex items-center space-x-1.5 pl-3 border-l border-slate-200 text-xs hover:opacity-80 transition-opacity"
+              className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-md hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all text-xs"
               title="View system status"
             >
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-slate-600 font-medium hidden sm:inline text-xs">
                 System Online
               </span>
+            </button>
+
+            {/* Mobile Menu Toggle */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-1.5 rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-100 md:hidden"
+              aria-label="Toggle Navigation Menu"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
 
         </div>
       </div>
 
+      {/* Mobile Drawer Navigation */}
+      {mobileMenuOpen && (
+        <div className="md:hidden border-t border-slate-200 bg-white px-4 pt-3 pb-6 space-y-3 animate-dropdown max-h-[85vh] overflow-y-auto">
+          {/* Mobile Ask AI Trigger */}
+          {onOpenAiDrawer && (
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                onOpenAiDrawer();
+              }}
+              className="w-full py-2.5 px-3 rounded-lg bg-[#EAF7F2] text-[#0F6B56] border border-[#c4eedf] text-xs font-semibold flex items-center justify-center space-x-2"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Ask AI Assistant</span>
+            </button>
+          )}
+
+          {/* Navigation Groups */}
+          <div className="space-y-1">
+            {NAV_GROUPS.map((group) => {
+              if (group.type === 'link') {
+                const isActive = activeGroupId === group.id || activeTab === group.tab;
+                return (
+                  <button
+                    key={group.id}
+                    onClick={() => handleNavClick(group)}
+                    className={`w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold flex items-center justify-between ${
+                      isActive ? 'bg-[#EAF7F2] text-[#0F6B56]' : 'text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span>{group.label}</span>
+                    {isActive && <span className="w-1.5 h-1.5 rounded-full bg-[#0F6B56]" />}
+                  </button>
+                );
+              }
+
+              const isExpanded = mobileExpandedGroup === group.id;
+              const isGroupActive = activeGroupId === group.id;
+
+              return (
+                <div key={group.id} className="border border-slate-100 rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => setMobileExpandedGroup(isExpanded ? null : group.id)}
+                    className={`w-full text-left px-3 py-2.5 text-xs font-semibold flex items-center justify-between ${
+                      isGroupActive ? 'text-[#0F6B56] bg-[#EAF7F2]/50' : 'text-slate-800'
+                    }`}
+                  >
+                    <span>{group.label}</span>
+                    <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {isExpanded && (
+                    <div className="bg-slate-50 px-2 py-1.5 space-y-1">
+                      {group.items.map((item) => {
+                        const isItemActive = activeTab === item.tab || activeTab === item.id;
+                        const IconComponent = ICON_MAP[item.icon] || FileText;
+
+                        return (
+                          <button
+                            key={item.id}
+                            onClick={() => handleNavClick(item)}
+                            className={`w-full text-left p-2 rounded-md text-xs flex items-center space-x-2 ${
+                              isItemActive
+                                ? 'bg-[#EAF7F2] text-[#0F6B56] font-semibold'
+                                : 'text-slate-700 hover:bg-white'
+                            }`}
+                          >
+                            <IconComponent className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                            <span className="truncate">{item.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* System Status Modal */}
       {showStatusModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/20 backdrop-blur-2xs flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-xl max-w-sm w-full p-5 shadow-lg space-y-4">
+        <div className="fixed inset-0 z-50 bg-slate-900/30 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white border border-slate-200 rounded-xl max-w-sm w-full p-5 shadow-xl space-y-4 animate-dropdown">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center space-x-2">
                 <Activity className="w-4 h-4 text-[#0F6B56]" />
@@ -309,40 +428,40 @@ export default function Navbar({ activeTab, onSelectTab, health, onSeedSample, i
             </div>
 
             <div className="space-y-2.5 text-xs">
-              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
+              <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-100">
                 <div className="flex items-center space-x-2 text-slate-700">
                   <Cpu className="w-3.5 h-3.5 text-slate-500" />
-                  <span>Backend API</span>
+                  <span>Backend API Service</span>
                 </div>
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                   Healthy
                 </span>
               </div>
 
-              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
+              <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-100">
                 <div className="flex items-center space-x-2 text-slate-700">
                   <Database className="w-3.5 h-3.5 text-slate-500" />
-                  <span>Database</span>
+                  <span>SQLite Database</span>
                 </div>
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                   Connected
                 </span>
               </div>
 
-              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
+              <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-100">
                 <div className="flex items-center space-x-2 text-slate-700">
                   <ShieldCheck className="w-3.5 h-3.5 text-slate-500" />
-                  <span>Extraction Engine</span>
+                  <span>Deterministic OCR Engine</span>
                 </div>
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  Available (PyMuPDF / Tesseract)
+                  PyMuPDF / Tesseract
                 </span>
               </div>
 
-              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
+              <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-100">
                 <div className="flex items-center space-x-2 text-slate-700">
                   <Sparkles className="w-3.5 h-3.5 text-slate-500" />
-                  <span>LLM Extraction</span>
+                  <span>Copilot / LLM Service</span>
                 </div>
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
                   {health?.openai_configured ? 'Configured (Live)' : 'Deterministic Active'}

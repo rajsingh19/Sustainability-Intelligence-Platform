@@ -23,6 +23,8 @@ import EmissionScenarios from './pages/EmissionScenarios';
 import AgentCenter from './pages/AgentCenter';
 import IndustryBenchmarking from './pages/IndustryBenchmarking';
 import Metrics from './pages/Metrics';
+import AskAIDrawer from './components/copilot/AskAIDrawer';
+import { Sparkles } from 'lucide-react';
 
 import { getDocuments, getStats, getHealth, getDocument, seedSampleDocument, deleteDocument, processDocument, getAttentionItems } from './services/api';
 
@@ -46,6 +48,7 @@ export default function App() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
   const [loadingActionId, setLoadingActionId] = useState(null);
+  const [isAiDrawerOpen, setIsAiDrawerOpen] = useState(false);
 
   // Synchronize route based on URL pathname
   const resolveRoute = useCallback(async (pathname) => {
@@ -416,6 +419,7 @@ export default function App() {
         health={health}
         onSeedSample={handleSeedSample}
         isSeeding={isSeeding}
+        onOpenAiDrawer={() => setIsAiDrawerOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -585,6 +589,23 @@ export default function App() {
       <footer className="border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-500">
         <p>Senseible Document Extractor &bull; Enterprise Sustainability Intelligence</p>
       </footer>
+
+      {/* Global Floating Ask AI Trigger */}
+      <button
+        onClick={() => setIsAiDrawerOpen(true)}
+        className="fixed bottom-6 right-6 z-40 px-4 py-2.5 rounded-full bg-[#0F6B56] hover:bg-[#0c5947] text-white text-xs font-bold shadow-lg hover:shadow-xl transition-all flex items-center space-x-2 border border-[#c4eedf]/40 group"
+        title="Open Senseible AI Assistant"
+      >
+        <Sparkles className="w-4 h-4 text-emerald-200 group-hover:rotate-12 transition-transform" />
+        <span>Ask AI</span>
+      </button>
+
+      {/* Global AI Assistant Drawer */}
+      <AskAIDrawer
+        isOpen={isAiDrawerOpen}
+        onClose={() => setIsAiDrawerOpen(false)}
+        document={selectedDocument}
+      />
 
     </div>
   );

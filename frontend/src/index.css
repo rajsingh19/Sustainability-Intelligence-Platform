@@ -3,24 +3,84 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --brand-primary: #0F6B56;
+    --brand-primary-hover: #0c5947;
+    --brand-primary-light: #EAF7F2;
+    --brand-primary-border: #c4eedf;
+  }
+
   body {
     @apply bg-slate-50 text-slate-900 font-sans antialiased;
     background-color: #f8fafc;
     color: #0f172a;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply tracking-tight font-semibold text-slate-900;
   }
 }
 
-/* Clean UI utility classes */
-.card {
-  @apply bg-white border border-slate-200 rounded-lg shadow-sm;
+/* Custom Enterprise Design System Utilities */
+.card-clean {
+  @apply bg-white border border-slate-200 rounded-xl shadow-xs transition-all duration-150;
+}
+
+.card-clean:hover {
+  @apply border-slate-300;
 }
 
 .table-header {
-  @apply bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider text-left;
+  @apply bg-slate-50/90 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-left;
 }
 
-.table-cell {
-  @apply px-4 py-3 text-sm text-slate-800 border-b border-slate-100;
+.table-row-hover {
+  @apply hover:bg-slate-50/80 transition-colors cursor-pointer;
+}
+
+/* Dropdown Animation */
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-dropdown {
+  animation: dropdownFadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Drawer Slide In */
+@keyframes drawerSlideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-drawer {
+  animation: drawerSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Fade in for modals / backdrops */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.15s ease-out forwards;
 }
 
 /* Subtle scrollbar */
@@ -47,4 +107,3 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
-
