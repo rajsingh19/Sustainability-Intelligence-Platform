@@ -11,6 +11,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from backend.app.database.session import get_db
+from backend.app.models.user import User
+from backend.app.services.auth import get_current_user
+from backend.app.services.security import get_owned_document
 from backend.app.schemas.reduction_intelligence import (
     ReductionPriorityResponse,
     ReductionPriorityDetail,
@@ -29,12 +32,15 @@ def list_reduction_priorities(
     scope: Optional[str] = Query(None, description="Filter by Scope: SCOPE_1, SCOPE_2, SCOPE_3, or ALL"),
     priority_level: Optional[str] = Query(None, description="Filter by Priority Level: CRITICAL, HIGH, MEDIUM, LOW, INFORMATIONAL"),
     category: Optional[str] = Query(None, description="Filter by Category: ENERGY, FUEL, TRANSPORT, WATER, WASTE, DATA_QUALITY"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
     Get ranked reduction priorities based on POSTED ledger entries, historical trends,
     Step 21 forecasts, opportunities, and projects.
     """
+    if document_id:
+        get_owned_document(db, document_id, current_user)
     priorities = reduction_intelligence_service.get_priorities(
         db=db,
         document_id=document_id,
@@ -69,22 +75,27 @@ def get_ranked_priorities(
 @router.get("/summary", response_model=ReductionIntelligenceSummary)
 def get_reduction_intelligence_summary(
     document_id: Optional[int] = Query(None, description="Filter summary by Document ID"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
     Get executive summary KPI counters and top reduction focus areas.
     """
+    if document_id:
+        get_owned_document(db, document_id, current_user)
     return reduction_intelligence_service.get_summary(db=db, document_id=document_id)
 
 
 @router.get("/document/{document_id}", response_model=ReductionPriorityList)
 def get_document_reduction_priorities(
     document_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
     Get reduction priorities specifically scoped to a single document.
     """
+    get_owned_document(db, document_id, current_user)
     priorities = reduction_intelligence_service.get_priorities(
         db=db,
         document_id=document_id,
@@ -96,12 +107,15 @@ def get_document_reduction_priorities(
 @router.post("/recalculate", response_model=RecalculateResponse)
 def recalculate_reduction_priorities(
     document_id: Optional[int] = Query(None, description="Recalculate for specific document or global"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
     Trigger deterministic re-evaluation of reduction priorities from source ledger and opportunities.
     Does not mutate underlying ledger entries, calculations, or metrics.
     """
+    if document_id:
+        get_owned_document(db, document_id, current_user)
     priorities = reduction_intelligence_service.evaluate_priorities(
         db=db,
         document_id=document_id,
@@ -118,17 +132,19 @@ def recalculate_reduction_priorities(
 @router.get("/recalculate", response_model=RecalculateResponse)
 def recalculate_reduction_priorities_get(
     document_id: Optional[int] = Query(None, description="Recalculate for specific document or global"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
     GET convenience endpoint for deterministic re-evaluation.
     """
-    return recalculate_reduction_priorities(document_id=document_id, db=db)
+    return recalculate_reduction_priorities(document_id=document_id, current_user=current_user, db=db)
 
 
 @router.get("/{priority_id}", response_model=ReductionPriorityDetail)
 def get_reduction_priority_detail(
     priority_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
@@ -140,6 +156,8 @@ def get_reduction_priority_detail(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Reduction priority with id {priority_id} not found."
         )
+    if priority.document_id:
+        get_owned_document(db, priority.document_id, current_user)
 
     # Calculate summary total posted emissions for percentage
     summary = reduction_intelligence_service.get_summary(db=db, document_id=priority.document_id)

@@ -9,6 +9,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from backend.app.database.session import get_db
+from backend.app.models.user import User
+from backend.app.models.document import Document
+from backend.app.services.auth import get_current_user
+from backend.app.services.security import get_owned_document
 from backend.app.schemas.reduction_roadmap import (
     RoadmapCreateRequest,
     RoadmapUpdateRequest,
@@ -35,11 +39,14 @@ service = ReductionRoadmapService()
 def create_reduction_roadmap(
     payload: RoadmapCreateRequest,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Initializes a new ReductionRoadmap, determines the accounting baseline from POSTED ledger entries,
-    calculates deterministic target emissions & gap, and generates 4-phase structured action items.
+    calculates deterministic target emissions & gap, and generates 4-phase structured action items for an owned document.
     """
+    if payload.document_id is not None:
+        get_owned_document(db, payload.document_id, current_user)
     try:
         roadmap = service.create_roadmap(
             db=db,
@@ -70,14 +77,25 @@ def list_reduction_roadmaps(
     document_id: Optional[int] = Query(None, description="Filter by document ID"),
     status: Optional[str] = Query(None, description="Filter by status (DRAFT, ACTIVE, ON_TRACK, etc.)"),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Returns all reduction roadmaps matching the specified filters.
+    Returns all reduction roadmaps for owned documents.
     """
+    if document_id is not None:
+        get_owned_document(db, document_id, current_user)
+    
     roadmaps = service.list_roadmaps(db=db, document_id=document_id, status=status)
+    from backend.app.services.auth import is_auth_dev_mode
+    if is_auth_dev_mode():
+        user_doc_ids = {d.id for d in db.query(Document).all()}
+    else:
+        user_doc_ids = {d.id for d in db.query(Document).filter(Document.user_id == current_user.id).all()}
+    filtered_roadmaps = [r for r in roadmaps if r.document_id is None or r.document_id in user_doc_ids]
+
     return RoadmapListResponse(
-        total=len(roadmaps),
-        items=[ReductionRoadmapResponse.model_validate(r) for r in roadmaps],
+        total=len(filtered_roadmaps),
+        items=[ReductionRoadmapResponse.model_validate(r) for r in filtered_roadmaps],
     )
 
 
@@ -89,9 +107,10 @@ def list_reduction_roadmaps(
 def get_reduction_roadmap_detail(
     id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Retrieves full details of a specific reduction roadmap.
+    Retrieves full details of a specific reduction roadmap for an owned document.
     """
     roadmap = service.get_roadmap(db=db, roadmap_id=id)
     if not roadmap:
@@ -99,24 +118,35 @@ def get_reduction_roadmap_detail(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Reduction roadmap #{id} not found",
         )
+    if roadmap.document_id is not None:
+        get_owned_document(db, roadmap.document_id, current_user)
     return roadmap
 
 
 @router.post(
     "/{id}/generate",
     response_model=ReductionRoadmapDetail,
-    summary="Regenerate phased action items for a roadmap",
+    summary="Regenerate/recalculate reduction roadmap from current database actuals",
 )
 def regenerate_roadmap_items(
     id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Regenerates all action items deterministically from latest Step 22A priorities and projects.
+    Regenerates action items for an owned roadmap.
     """
+    roadmap = service.get_roadmap(db=db, roadmap_id=id)
+    if not roadmap:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Reduction roadmap #{id} not found",
+        )
+    if roadmap.document_id is not None:
+        get_owned_document(db, roadmap.document_id, current_user)
     try:
-        roadmap = service.generate_roadmap_items(db=db, roadmap_id=id)
-        return roadmap
+        updated = service.generate_roadmap_items(db=db, roadmap_id=id)
+        return updated
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except Exception as e:
@@ -129,15 +159,24 @@ def regenerate_roadmap_items(
 @router.get(
     "/{id}/progress",
     response_model=RoadmapProgressResponse,
-    summary="Get progress tracking (Roadmap Progress vs Emissions Progress)",
+    summary="Get quantified progress against roadmap reduction targets",
 )
 def get_roadmap_progress(
     id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Returns progress analytics clearly distinguishing actions completed from actual carbon ledger changes.
+    Returns progress analytics for an owned roadmap.
     """
+    roadmap = service.get_roadmap(db=db, roadmap_id=id)
+    if not roadmap:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Reduction roadmap #{id} not found",
+        )
+    if roadmap.document_id is not None:
+        get_owned_document(db, roadmap.document_id, current_user)
     try:
         progress = service.calculate_progress(db=db, roadmap_id=id)
         return progress
@@ -146,47 +185,28 @@ def get_roadmap_progress(
 
 
 @router.patch(
-    "/{id}",
-    response_model=ReductionRoadmapResponse,
-    summary="Update roadmap status or metadata",
-)
-def update_reduction_roadmap(
-    id: int,
-    payload: RoadmapUpdateRequest,
-    db: Session = Depends(get_db),
-):
-    """
-    Updates roadmap metadata, target year/period, or lifecycle status.
-    """
-    try:
-        updated = service.update_roadmap(
-            db=db,
-            roadmap_id=id,
-            name=payload.name,
-            status=payload.status,
-            confidence=payload.confidence,
-            target_year=payload.target_year,
-            target_period=payload.target_period,
-        )
-        return updated
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-
-
-@router.patch(
     "/{id}/items/{item_id}",
     response_model=RoadmapItemResponse,
-    summary="Update execution status of an individual roadmap item",
+    summary="Update roadmap action item status with audit trail",
 )
 def update_roadmap_item_status(
     id: int,
     item_id: int,
     payload: RoadmapItemStatusUpdateRequest,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Updates the status (NOT_STARTED, IN_PROGRESS, BLOCKED, COMPLETED, CANCELLED) of an action item.
+    Transitions roadmap action item status for an owned roadmap.
     """
+    roadmap = service.get_roadmap(db=db, roadmap_id=id)
+    if not roadmap:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Reduction roadmap #{id} not found",
+        )
+    if roadmap.document_id is not None:
+        get_owned_document(db, roadmap.document_id, current_user)
     try:
         item = service.update_item_status(
             db=db,
@@ -200,17 +220,62 @@ def update_roadmap_item_status(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
+@router.patch(
+    "/{id}",
+    response_model=ReductionRoadmapResponse,
+    summary="Update roadmap metadata",
+)
+def update_reduction_roadmap(
+    id: int,
+    payload: RoadmapUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Updates mutable metadata on an owned reduction roadmap.
+    """
+    roadmap = service.get_roadmap(db=db, roadmap_id=id)
+    if not roadmap:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Reduction roadmap #{id} not found",
+        )
+    if roadmap.document_id is not None:
+        get_owned_document(db, roadmap.document_id, current_user)
+    try:
+        updated = service.update_roadmap(
+            db=db,
+            roadmap_id=id,
+            name=payload.name,
+            status=payload.status,
+            target_year=payload.target_year,
+            target_period=payload.target_period,
+        )
+        return updated
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
 @router.get(
     "/{id}/events",
     response_model=List[RoadmapEventResponse],
-    summary="Get audit event history for a roadmap",
+    summary="Get full audit log of roadmap events",
 )
 def get_roadmap_events(
     id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Returns the immutable audit log of status transitions and milestones for this roadmap.
+    Returns audit trail of all lifecycle transitions for an owned roadmap.
     """
+    roadmap = service.get_roadmap(db=db, roadmap_id=id)
+    if not roadmap:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Reduction roadmap #{id} not found",
+        )
+    if roadmap.document_id is not None:
+        get_owned_document(db, roadmap.document_id, current_user)
     events = service.get_roadmap_events(db=db, roadmap_id=id)
     return events

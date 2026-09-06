@@ -32,6 +32,7 @@ def get_db():
 
 def init_db():
     """Create all tables and perform lightweight column migrations if needed."""
+    from backend.app.models.user import User  # noqa: F401
     from backend.app.models.document import Document  # noqa: F401
     from backend.app.models.audit import AuditLog  # noqa: F401
     from backend.app.models.sustainability_metric import SustainabilityMetric  # noqa: F401
@@ -54,12 +55,24 @@ def init_db():
             result = conn.execute(text("PRAGMA table_info(documents)"))
             existing_cols = [row[1] for row in result.fetchall()]
             
+            if "user_id" not in existing_cols:
+                conn.execute(text("ALTER TABLE documents ADD COLUMN user_id INTEGER"))
             if "review_status" not in existing_cols:
                 conn.execute(text("ALTER TABLE documents ADD COLUMN review_status VARCHAR(50) DEFAULT 'NEEDS_REVIEW'"))
             if "quality_score" not in existing_cols:
                 conn.execute(text("ALTER TABLE documents ADD COLUMN quality_score FLOAT DEFAULT 0.0"))
             if "quality_summary" not in existing_cols:
                 conn.execute(text("ALTER TABLE documents ADD COLUMN quality_summary JSON"))
+            
+            # Auto-migration for users columns
+            try:
+                user_res = conn.execute(text("PRAGMA table_info(users)"))
+                existing_user_cols = [row[1] for row in user_res.fetchall()]
+                if "full_name" not in existing_user_cols:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN full_name VARCHAR(255)"))
+            except Exception:
+                pass
+            
             if "field_corrections" not in existing_cols:
                 conn.execute(text("ALTER TABLE documents ADD COLUMN field_corrections JSON"))
             if "file_hash" not in existing_cols:
@@ -87,8 +100,19 @@ def init_db():
     # Backfill reporting_period and enforce data integrity for Document #1
     try:
         with SessionLocal() as db_session:
+            from backend.app.models.user import User
             from backend.app.models.document import Document
             from backend.app.models.sustainability_metric import SustainabilityMetric
+            from backend.app.services.auth import get_or_create_demo_user
+            from sqlalchemy.orm.attributes import flag_modified
+
+            # Ensure demo user exists
+            demo_user = get_or_create_demo_user(db_session)
+
+            # Assign legacy unowned documents to demo user
+            unowned_docs = db_session.query(Document).filter(Document.user_id.is_(None)).all()
+            for d in unowned_docs:
+                d.user_id = demo_user.id
             from sqlalchemy.orm.attributes import flag_modified
 
             # 1. Backfill reporting_period for documents that have period text in extracted_text

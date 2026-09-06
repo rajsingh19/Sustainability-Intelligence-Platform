@@ -887,11 +887,12 @@ class CopilotHybridRetriever:
         db: Session,
         query: str,
         history: Optional[List[Dict[str, str]]] = None,
-        document_id: Optional[int] = None
+        document_id: Optional[int] = None,
+        user_id: Optional[int] = None
     ) -> RAGContext:
         """
         Build a strongly typed RAGContext for a query.
-        Guarantees metric identity protection, source lineage, and strict document-scoped filtering.
+        Guarantees metric identity protection, source lineage, and strict user/document-scoped filtering.
         """
         clean_query = (query or "").strip()
         parsed_query = CopilotRAGRouter.parse_query(clean_query, history=history)
@@ -899,20 +900,27 @@ class CopilotHybridRetriever:
 
         # 1. Sync / populate vector index with documents from DB if empty
         docs_query = db.query(Document)
+        if user_id is not None:
+            docs_query = docs_query.filter(Document.user_id == user_id)
         if document_id is not None:
             docs_query = docs_query.filter(Document.id == document_id)
         all_docs = docs_query.order_by(Document.id.desc()).all()
+        user_doc_ids = {d.id for d in all_docs}
 
         if all_docs:
             self.vector_index.build_from_documents(all_docs)
 
         # 2. Semantic Chunk Retrieval
         retrieved_chunks: List[RAGChunkResult] = self.vector_index.search(clean_query, top_k=5, document_id=document_id)
+        if user_id is not None:
+            retrieved_chunks = [c for c in retrieved_chunks if c.document_id in user_doc_ids]
 
         # 3. Authoritative Structured Metric Retrieval
         metrics_query = db.query(SustainabilityMetric, Document).join(
             Document, SustainabilityMetric.document_id == Document.id
         )
+        if user_id is not None:
+            metrics_query = metrics_query.filter(Document.user_id == user_id)
         if document_id is not None:
             metrics_query = metrics_query.filter(SustainabilityMetric.document_id == document_id)
         
@@ -948,28 +956,23 @@ class CopilotHybridRetriever:
         # Sort structured metrics by query relevance
         def score_rag_metric(rm: RAGMetric) -> int:
             if parsed_query.target_metric_type and rm.metric_type == parsed_query.target_metric_type:
-                return 1000
+                return 100
             score = 0
-            m_type = rm.metric_type.lower()
-            q_lower = clean_query.lower()
-            m_parts = m_type.split("_")
-            q_words = [w.strip("?,.!") for w in q_lower.split() if len(w.strip("?,.!")) > 2]
-            score += sum(1 for w in q_words if any(w in part or part in w for part in m_parts))
-            for kw in ["electricity", "fuel", "diesel", "water", "peak", "demand", "waste", "renewable", "solar", "emission", "scope", "power"]:
-                if kw in q_lower and kw in m_type:
-                    score += 10
+            if clean_query.lower() in rm.metric_name.lower(): score += 50
+            if rm.category and rm.category.lower() in clean_query.lower(): score += 20
+            if rm.verification_status == "HUMAN_VERIFIED": score += 10
             return score
 
         rag_metrics.sort(key=score_rag_metric, reverse=True)
 
 
-        # 4. Evidence Lineage (SourceContext)
+        # 4. Extract Structured Evidence Sources & Citations
         sources: List[SourceContext] = []
         seen_sources = set()
 
-        for rm in rag_metrics:
-            s_key = (rm.document_id, rm.source_field, rm.value)
-            if s_key not in seen_sources:
+        for rm in rag_metrics[:4]:
+            s_key = (rm.document_id, rm.source_field, rm.source_text)
+            if s_key not in seen_sources and rm.source_field:
                 seen_sources.add(s_key)
                 sources.append(SourceContext(
                     document_id=rm.document_id,
@@ -995,6 +998,8 @@ class CopilotHybridRetriever:
 
         # 5. Deterministic Insights Retrieval
         all_insights = insights_service.generate_metric_insights(db)
+        if user_id is not None:
+            all_insights = [i for i in all_insights if i.source_document_id in user_doc_ids]
         if document_id is not None:
             all_insights = [i for i in all_insights if i.source_document_id == document_id]
         
@@ -1013,12 +1018,14 @@ class CopilotHybridRetriever:
 
         # 6. Deterministic Recommendations Retrieval
         recs = copilot_recommendation_service.generate_recommendations(db, query=clean_query, document_id=document_id)
+        if user_id is not None:
+            recs = [r for r in recs if r.source_document_id in user_doc_ids]
         if document_id is not None:
             recs = [r for r in recs if r.source_document_id == document_id]
 
 
         # 7. Deterministic Attention Items Retrieval
-        att_res = copilot_attention_service.get_attention_items(db)
+        att_res = copilot_attention_service.get_attention_items(db, user_id=user_id)
         att_items = att_res.items
         if document_id is not None:
             att_items = [a for a in att_items if a.document_id == document_id]

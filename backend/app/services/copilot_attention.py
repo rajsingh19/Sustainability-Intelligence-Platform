@@ -21,16 +21,27 @@ class CopilotAttentionService:
     issues and metric shifts across documents, metrics, and insights without LLM hallucinations.
     """
 
-    def get_attention_items(self, db: Session) -> AttentionResponse:
+    def get_attention_items(self, db: Session, user_id: Optional[int] = None) -> AttentionResponse:
         """
         Generate prioritized, deduplicated attention items and summary directly from database.
         """
         items: List[AttentionItem] = []
         seen_keys = set()
 
-        docs = db.query(Document).order_by(desc(Document.created_at)).all()
-        metrics = db.query(SustainabilityMetric).order_by(desc(SustainabilityMetric.created_at)).all()
+        docs_query = db.query(Document)
+        if user_id is not None:
+            docs_query = docs_query.filter(Document.user_id == user_id)
+        docs = docs_query.order_by(desc(Document.created_at)).all()
+        user_doc_ids = {d.id for d in docs}
+
+        metrics_query = db.query(SustainabilityMetric)
+        if user_id is not None:
+            metrics_query = metrics_query.join(Document, SustainabilityMetric.document_id == Document.id).filter(Document.user_id == user_id)
+        metrics = metrics_query.order_by(desc(SustainabilityMetric.created_at)).all()
+        
         insights = insights_service.generate_metric_insights(db)
+        if user_id is not None:
+            insights = [i for i in insights if i.source_document_id in user_doc_ids]
 
         # 1. Document Review Items (NEEDS_REVIEW, low confidence, OCR fallback, classification conflict)
         for doc in docs:

@@ -1,3 +1,4 @@
+from backend.app.models.user import User
 from backend.app.models.document import Document
 from backend.app.models.audit import AuditLog
 from backend.app.models.sustainability_metric import SustainabilityMetric
@@ -29,6 +30,7 @@ from backend.app.models.industry_benchmark import (
 )
 
 __all__ = [
+    "User",
     "Document",
     "AuditLog",
     "SustainabilityMetric",

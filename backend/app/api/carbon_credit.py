@@ -13,6 +13,8 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from backend.app.database.session import get_db
+from backend.app.models.user import User
+from backend.app.services.auth import get_current_user
 from backend.app.schemas.carbon_credit import (
     CarbonCreditAssessmentCreate,
     CarbonCreditAssessmentStatusUpdate,
@@ -37,7 +39,9 @@ router = APIRouter(prefix="/carbon-credit", tags=["Carbon Credit Readiness"])
 
 
 @router.get("/framework")
-def get_carbon_credit_framework():
+def get_carbon_credit_framework(
+    current_user: User = Depends(get_current_user)
+):
     """
     Get Carbon Credit Readiness framework metadata, scoring methodology, and product boundary disclaimers.
     """
@@ -67,7 +71,9 @@ def get_carbon_credit_framework():
 
 
 @router.get("/requirements")
-def list_carbon_credit_requirements():
+def list_carbon_credit_requirements(
+    current_user: User = Depends(get_current_user)
+):
     """
     List all 15 readiness requirement criteria definitions.
     """
@@ -77,6 +83,7 @@ def list_carbon_credit_requirements():
 @router.post("/assessments", response_model=CarbonCreditAssessmentResponse, status_code=status.HTTP_201_CREATED)
 def create_carbon_credit_assessment(
     data: CarbonCreditAssessmentCreate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -94,6 +101,7 @@ def list_carbon_credit_assessments(
     project_id: Optional[int] = Query(None, description="Filter by ReductionProject ID"),
     reporting_period: Optional[str] = Query(None, description="Filter by reporting period"),
     status: Optional[str] = Query(None, description="Filter by assessment status"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -107,6 +115,7 @@ def list_carbon_credit_assessments(
 @router.get("/assessments/{assessment_id}", response_model=CarbonCreditAssessmentResponse)
 def get_carbon_credit_assessment(
     assessment_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -121,6 +130,7 @@ def get_carbon_credit_assessment(
 @router.post("/assessments/{assessment_id}/generate", response_model=CarbonCreditAssessmentResponse)
 def generate_carbon_credit_assessment(
     assessment_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -136,6 +146,7 @@ def generate_carbon_credit_assessment(
 @router.get("/assessments/{assessment_id}/requirements", response_model=List[CarbonCreditRequirementResponse])
 def get_carbon_credit_assessment_requirements(
     assessment_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -151,6 +162,7 @@ def get_carbon_credit_assessment_requirements(
 @router.get("/assessments/{assessment_id}/evidence", response_model=List[CarbonCreditEvidenceResponse])
 def get_carbon_credit_assessment_evidence(
     assessment_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -169,6 +181,7 @@ def get_carbon_credit_assessment_evidence(
 @router.get("/assessments/{assessment_id}/actions", response_model=List[CarbonCreditNextAction])
 def get_carbon_credit_assessment_actions(
     assessment_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -184,6 +197,7 @@ def get_carbon_credit_assessment_actions(
 @router.get("/assessments/{assessment_id}/checklist", response_model=List[CarbonCreditChecklistItem])
 def get_carbon_credit_assessment_checklist(
     assessment_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -199,6 +213,7 @@ def get_carbon_credit_assessment_checklist(
 @router.get("/assessments/{assessment_id}/methodology", response_model=CarbonCreditMethodologyReadiness)
 def get_carbon_credit_assessment_methodology(
     assessment_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -214,6 +229,7 @@ def get_carbon_credit_assessment_methodology(
 @router.post("/assessments/{assessment_id}/finalize", response_model=CarbonCreditAssessmentResponse)
 def finalize_carbon_credit_assessment(
     assessment_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -235,6 +251,7 @@ def finalize_carbon_credit_assessment(
 def update_carbon_credit_assessment_status(
     assessment_id: int,
     data: CarbonCreditAssessmentStatusUpdate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -255,6 +272,7 @@ def update_carbon_credit_assessment_status(
 @router.get("/assessments/{assessment_id}/pdf")
 def get_carbon_credit_assessment_pdf(
     assessment_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """

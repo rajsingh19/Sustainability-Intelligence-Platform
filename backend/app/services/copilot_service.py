@@ -22,20 +22,22 @@ class CopilotService:
         db: Session,
         message: str,
         history: Optional[List[Dict[str, str]]] = None,
-        document_id: Optional[int] = None
+        document_id: Optional[int] = None,
+        user_id: Optional[int] = None
     ) -> CopilotResponse:
         """
         Process incoming user query, execute hybrid RAG retrieval across database and vector index,
-        and generate a grounded, structured CopilotResponse.
+        and generate a grounded, structured CopilotResponse for the user.
         """
-        logger.info(f"Copilot RAG chat query: {message[:60]}... (doc_id={document_id})")
+        logger.info(f"Copilot RAG chat query: {message[:60]}... (doc_id={document_id}, user_id={user_id})")
         
         # 1. Execute Hybrid RAG Retrieval across database metrics, document chunks, evidence & insights
         rag_context = copilot_hybrid_retriever.retrieve(
             db,
             message,
             history=history,
-            document_id=document_id
+            document_id=document_id,
+            user_id=user_id
         )
         
         # 2. Generate grounded answer via CopilotLLMService (Live OpenAI or Deterministic Fallback)

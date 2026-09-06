@@ -1,11 +1,13 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Text, Float, DateTime, JSON
+from sqlalchemy import Column, Integer, String, Text, Float, DateTime, JSON, ForeignKey
+from sqlalchemy.orm import relationship
 from backend.app.database.base import Base
 
 class Document(Base):
     __tablename__ = "documents"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     filename = Column(String(255), nullable=False)
     original_filename = Column(String(255), nullable=False)
     file_path = Column(String(512), nullable=False)
@@ -63,9 +65,13 @@ class Document(Base):
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    # Relationships
+    user = relationship("User", back_populates="documents")
+
     def to_dict(self):
         return {
             "id": self.id,
+            "user_id": self.user_id,
             "filename": self.filename,
             "original_filename": self.original_filename,
             "file_size": self.file_size,

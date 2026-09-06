@@ -12,6 +12,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from backend.app.database.session import get_db
+from backend.app.models.user import User
+from backend.app.services.auth import get_current_user
 from backend.app.schemas.emission_forecast import (
     ForecastRequest,
     EmissionForecastResponse,
@@ -36,6 +38,7 @@ def get_emissions_forecast(
     reporting_year: Optional[str] = Query(None, description="Filter reporting year"),
     horizon: int = Query(1, ge=1, le=4, description="Forecast horizon in periods (1 to 4)"),
     model_preference: Optional[str] = Query(None, description="Preferred model"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -55,6 +58,7 @@ def get_emissions_forecast(
 @router.post("", response_model=EmissionForecastResponse, status_code=status.HTTP_201_CREATED)
 def create_emissions_forecast(
     data: ForecastRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -77,6 +81,7 @@ def get_forecast_data_quality(
     scope: Optional[str] = Query(None),
     category: Optional[str] = Query(None),
     activity_type: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -93,6 +98,7 @@ def get_forecast_backtest(
     scope: Optional[str] = Query(None),
     category: Optional[str] = Query(None),
     activity_type: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -108,6 +114,7 @@ def get_forecast_backtest(
 @router.get("/history")
 def list_forecast_history(
     limit: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -140,6 +147,7 @@ def list_forecast_history(
 @router.get("/{forecast_id}", response_model=EmissionForecastResponse)
 def get_forecast_by_id(
     forecast_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """

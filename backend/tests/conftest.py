@@ -20,6 +20,9 @@ This approach:
 - Guarantees production/demo DB contamination is always cleaned up.
 - A test crash cannot leave contamination because session-end init_db() restores state.
 """
+import os
+os.environ["AUTH_DEV_MODE"] = "true"
+
 import pytest
 from backend.app.database.session import SessionLocal, init_db
 from backend.app.models.sustainability_metric import SustainabilityMetric

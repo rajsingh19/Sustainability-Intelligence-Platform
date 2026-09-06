@@ -5,6 +5,72 @@ const api = axios.create({
   timeout: 60000,
 });
 
+// Attach Authorization Bearer token if present
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+}, (error) => {
+  return Promise.reject(error);
+});
+
+export const setAuthToken = (token, remember = true) => {
+  if (token) {
+    if (remember) {
+      localStorage.setItem('auth_token', token);
+    } else {
+      sessionStorage.setItem('auth_token', token);
+    }
+  } else {
+    localStorage.removeItem('auth_token');
+    sessionStorage.removeItem('auth_token');
+  }
+};
+
+export const getAuthToken = () => {
+  return localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+};
+
+export const registerUser = async (email, password, fullName, organizationName) => {
+  const response = await api.post('/auth/register', {
+    email,
+    password,
+    full_name: fullName,
+    organization_name: organizationName,
+  });
+  if (response.data && response.data.access_token) {
+    setAuthToken(response.data.access_token);
+  }
+  return response.data;
+};
+
+export const loginUser = async (email, password) => {
+  const response = await api.post('/auth/login', { email, password });
+  if (response.data && response.data.access_token) {
+    setAuthToken(response.data.access_token);
+  }
+  return response.data;
+};
+
+export const getMe = async () => {
+  const response = await api.get('/auth/me');
+  return response.data;
+};
+
+export const getDemoToken = async () => {
+  const response = await api.post('/auth/demo-token');
+  if (response.data && response.data.access_token) {
+    setAuthToken(response.data.access_token);
+  }
+  return response.data;
+};
+
+export const logoutUser = () => {
+  setAuthToken(null);
+};
+
 export const getHealth = async () => {
   const response = await api.get('/health');
   return response.data;

@@ -11,7 +11,11 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
 from backend.app.database.session import get_db
+from backend.app.models.user import User
+from backend.app.models.document import Document
 from backend.app.models.proactive_agent import AgentAction, AgentActionEvent
+from backend.app.services.auth import get_current_user
+from backend.app.services.security import get_owned_document
 from backend.app.schemas.proactive_agent import (
     AgentActionResponse,
     AgentActionListResponse,
@@ -32,13 +36,16 @@ router = APIRouter(prefix="/agent", tags=["AI Sustainability Agent"])
 @router.post("/run", response_model=AgentRunResponse)
 def run_agent(
     payload: Optional[AgentRunRequest] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Idempotently runs the Proactive AI Sustainability Agent decision engine.
     Running twice with identical data produces 0 duplicate actions.
     """
     doc_id = payload.document_id if payload else None
+    if doc_id is not None:
+        get_owned_document(db, doc_id, current_user)
     force_recalc = payload.force_recalculate if payload else False
 
     try:
@@ -58,12 +65,15 @@ def run_agent(
 @router.get("/brief", response_model=AgentBriefResponse)
 def get_sustainability_brief(
     document_id: Optional[int] = Query(None, description="Optional document ID scoping"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Returns the authoritative AI Sustainability Brief (Patch 4 & Patch 8).
     Strictly separates Actuals, Forecasts (FORECAST — NOT ACTUAL), and Scenarios (SCENARIO — NOT ACTUAL).
     """
+    if document_id is not None:
+        get_owned_document(db, document_id, current_user)
     try:
         brief = proactive_agent_service.get_sustainability_brief(db=db, document_id=document_id)
         return brief
@@ -76,24 +86,33 @@ def get_sustainability_brief(
 
 @router.get("/status", response_model=AgentStatusResponse)
 def get_agent_status(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Returns high-level agent runtime status, last evaluated timestamp, and queue counts.
+    Returns high-level agent runtime status, last evaluated timestamp, and queue counts for owned actions.
     """
-    total = db.query(AgentAction).count()
-    open_cnt = db.query(AgentAction).filter(AgentAction.status == "OPEN").count()
-    in_prog = db.query(AgentAction).filter(AgentAction.status == "IN_PROGRESS").count()
-    completed = db.query(AgentAction).filter(AgentAction.status == "COMPLETED").count()
-    red_cnt = db.query(AgentAction).filter(
+    from backend.app.services.auth import is_auth_dev_mode
+    if is_auth_dev_mode():
+        base_q = db.query(AgentAction)
+    else:
+        base_q = db.query(AgentAction).join(
+            Document, AgentAction.document_id == Document.id
+        ).filter(Document.user_id == current_user.id)
+
+    total = base_q.count()
+    open_cnt = base_q.filter(AgentAction.status == "OPEN").count()
+    in_prog = base_q.filter(AgentAction.status == "IN_PROGRESS").count()
+    completed = base_q.filter(AgentAction.status == "COMPLETED").count()
+    red_cnt = base_q.filter(
         AgentAction.queue_type == "REDUCTION",
         AgentAction.status.in_(["OPEN", "IN_PROGRESS"])
     ).count()
-    dq_cnt = db.query(AgentAction).filter(
+    dq_cnt = base_q.filter(
         AgentAction.queue_type == "DATA_QUALITY",
         AgentAction.status.in_(["OPEN", "IN_PROGRESS"])
     ).count()
-    ready_cnt = db.query(AgentAction).filter(
+    ready_cnt = base_q.filter(
         AgentAction.dependency_status == "READY",
         AgentAction.status.in_(["OPEN", "IN_PROGRESS"])
     ).count()
@@ -124,13 +143,23 @@ def list_actions(
     dependency_status: Optional[str] = Query(None),
     document_id: Optional[int] = Query(None),
     limit: int = Query(100, ge=1, le=500),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Lists persisted AgentActions with filtering across queue_type, status, priority, and document scope.
+    Lists persisted AgentActions for owned documents with filtering across queue_type, status, priority, and document scope.
     """
-    query = db.query(AgentAction)
+    from backend.app.services.auth import is_auth_dev_mode
+    if is_auth_dev_mode():
+        query = db.query(AgentAction)
+    else:
+        query = db.query(AgentAction).join(
+            Document, AgentAction.document_id == Document.id
+        ).filter(Document.user_id == current_user.id)
 
+    if document_id is not None:
+        get_owned_document(db, document_id, current_user)
+        query = query.filter(AgentAction.document_id == document_id)
     if status_filter:
         query = query.filter(AgentAction.status == status_filter.upper())
     if priority_filter:
@@ -142,8 +171,6 @@ def list_actions(
         query = query.filter(AgentAction.queue_type == q_filter.upper())
     if dependency_status:
         query = query.filter(AgentAction.dependency_status == dependency_status.upper())
-    if document_id:
-        query = query.filter(AgentAction.document_id == document_id)
 
     # Deterministic ordering by priority_score descending
     query = query.order_by(desc(AgentAction.priority_score), desc(AgentAction.created_at))
@@ -152,7 +179,12 @@ def list_actions(
     actions = query.limit(limit).all()
 
     # Aggregate counts
-    base_q = db.query(AgentAction)
+    if is_auth_dev_mode():
+        base_q = db.query(AgentAction)
+    else:
+        base_q = db.query(AgentAction).join(
+            Document, AgentAction.document_id == Document.id
+        ).filter(Document.user_id == current_user.id)
     if document_id:
         base_q = base_q.filter(AgentAction.document_id == document_id)
 
@@ -178,7 +210,8 @@ def list_actions(
 @router.get("/actions/{action_id}", response_model=AgentActionResponse)
 def get_action(
     action_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Retrieves detailed AgentAction by ID with full provenance lineage and dependency references.
@@ -186,6 +219,8 @@ def get_action(
     action = db.query(AgentAction).filter(AgentAction.id == action_id).first()
     if not action:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"AgentAction #{action_id} not found.")
+    if action.document_id is not None:
+        get_owned_document(db, action.document_id, current_user)
     return action.to_dict()
 
 
@@ -193,14 +228,17 @@ def get_action(
 def patch_action(
     action_id: int,
     payload: AgentActionUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Updates action metadata (e.g. due context or next step).
+    Updates AgentAction fields for an owned action.
     """
     action = db.query(AgentAction).filter(AgentAction.id == action_id).first()
     if not action:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"AgentAction #{action_id} not found.")
+    if action.document_id is not None:
+        get_owned_document(db, action.document_id, current_user)
 
     if payload.due_context is not None:
         action.due_context = payload.due_context
@@ -221,11 +259,17 @@ def patch_action(
 def start_action(
     action_id: int,
     reason: Optional[str] = Query(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Transitions action to IN_PROGRESS and records audit event.
+    Transitions action to IN_PROGRESS and records audit event for owned action.
     """
+    action = db.query(AgentAction).filter(AgentAction.id == action_id).first()
+    if not action:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"AgentAction #{action_id} not found.")
+    if action.document_id is not None:
+        get_owned_document(db, action.document_id, current_user)
     try:
         action = proactive_agent_service.start_action(
             db=db, action_id=action_id, actor_type="USER", reason=reason
@@ -239,11 +283,17 @@ def start_action(
 def complete_action(
     action_id: int,
     reason: Optional[str] = Query(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Transitions action to COMPLETED, records audit event, and activates dependent child actions from BLOCKED to READY (Patch 3).
+    Transitions action to COMPLETED, records audit event, and activates dependent child actions from BLOCKED to READY.
     """
+    action = db.query(AgentAction).filter(AgentAction.id == action_id).first()
+    if not action:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"AgentAction #{action_id} not found.")
+    if action.document_id is not None:
+        get_owned_document(db, action.document_id, current_user)
     try:
         action = proactive_agent_service.complete_action(
             db=db, action_id=action_id, actor_type="USER", reason=reason
@@ -257,11 +307,17 @@ def complete_action(
 def dismiss_action(
     action_id: int,
     reason: Optional[str] = Query(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Transitions action to DISMISSED and records audit event.
+    Transitions action to DISMISSED and records audit event for owned action.
     """
+    action = db.query(AgentAction).filter(AgentAction.id == action_id).first()
+    if not action:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"AgentAction #{action_id} not found.")
+    if action.document_id is not None:
+        get_owned_document(db, action.document_id, current_user)
     try:
         action = proactive_agent_service.dismiss_action(
             db=db, action_id=action_id, actor_type="USER", reason=reason
@@ -274,14 +330,17 @@ def dismiss_action(
 @router.get("/actions/{action_id}/events", response_model=AgentActionEventListResponse)
 def list_action_events(
     action_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Returns audit trail of all lifecycle transitions for an action.
+    Returns audit trail of all lifecycle transitions for an owned action.
     """
     action = db.query(AgentAction).filter(AgentAction.id == action_id).first()
     if not action:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"AgentAction #{action_id} not found.")
+    if action.document_id is not None:
+        get_owned_document(db, action.document_id, current_user)
 
     events = db.query(AgentActionEvent).filter(
         AgentActionEvent.action_id == action_id
@@ -296,11 +355,17 @@ def list_action_events(
 @router.post("/explain/{action_id}", response_model=AgentExplanationResponse)
 def explain_action(
     action_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Returns structured explanation contract: WHAT, WHY, NEXT, EVIDENCE, FOLLOW_UP, LIMITATION (Patch 5).
+    Returns structured explanation contract: WHAT, WHY, NEXT, EVIDENCE, FOLLOW_UP, LIMITATION for an owned action.
     """
+    action = db.query(AgentAction).filter(AgentAction.id == action_id).first()
+    if not action:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"AgentAction #{action_id} not found.")
+    if action.document_id is not None:
+        get_owned_document(db, action.document_id, current_user)
     try:
         explanation = proactive_agent_service.explain_action(db=db, action_id=action_id)
         return explanation

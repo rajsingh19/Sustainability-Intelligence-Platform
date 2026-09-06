@@ -11,6 +11,7 @@ class DocumentBase(BaseModel):
 
 class DocumentResponse(DocumentBase):
     id: int
+    user_id: Optional[int] = None
     status: str
     review_status: str = "NEEDS_REVIEW"
     extraction_method: Optional[str] = None

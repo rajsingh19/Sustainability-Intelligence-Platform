@@ -1411,10 +1411,20 @@ class TestPDFReportGeneration:
 
 @pytest.fixture(scope="module")
 def api_engine():
-    init_db()
+    import os
+    if os.path.exists("./test_carbon_credit.db"):
+        try:
+            os.remove("./test_carbon_credit.db")
+        except Exception:
+            pass
     engine = create_engine("sqlite:///./test_carbon_credit.db", echo=False)
     Base.metadata.create_all(bind=engine)
     yield engine
+    if os.path.exists("./test_carbon_credit.db"):
+        try:
+            os.remove("./test_carbon_credit.db")
+        except Exception:
+            pass
 
 
 @pytest.fixture(scope="module")

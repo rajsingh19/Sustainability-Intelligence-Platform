@@ -15,9 +15,13 @@ from sqlalchemy import desc, or_, func
 logger = logging.getLogger("senseible-document-ai")
 
 from backend.app.database.session import get_db
+from backend.app.models.user import User
 from backend.app.models.document import Document
 from backend.app.models.audit import AuditLog
 from backend.app.models.sustainability_metric import SustainabilityMetric
+from backend.app.services.auth import get_current_user
+from backend.app.services.security import get_owned_document
+from backend.app.api.auth import router as auth_router
 from backend.app.schemas.document import (
     DocumentResponse,
     DocumentListResponse,
@@ -157,6 +161,7 @@ from backend.app.utils.sample_generator import (
 )
 
 router = APIRouter(prefix="/api", tags=["Document AI"])
+router.include_router(auth_router)
 router.include_router(carbon_credit_router)
 router.include_router(emission_forecast_router)
 router.include_router(reduction_intelligence_router)
@@ -201,11 +206,12 @@ async def upload_document(
     file: UploadFile = File(...),
     auto_process: bool = Query(True, description="Automatically trigger extraction pipeline"),
     force_ocr: bool = Query(False, description="Force Tesseract OCR extraction"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Upload a PDF sustainability document, check for deterministic SHA-256 duplicate,
-    and execute the AI extraction pipeline.
+    and execute the AI extraction pipeline for the authenticated user.
     """
     safe_name = os.path.basename(file.filename or "document.pdf")
     if not safe_name.lower().endswith(".pdf"):
@@ -238,9 +244,10 @@ async def upload_document(
 
     file_hash = hashlib.sha256(file_bytes).hexdigest()
 
-    # Deterministic duplicate detection: check if exact file was already uploaded
+    # Deterministic duplicate detection: check if exact file was already uploaded by this user
     existing_doc = db.query(Document).filter(
         Document.file_hash == file_hash,
+        Document.user_id == current_user.id,
         Document.status == "COMPLETED"
     ).first()
 
@@ -270,6 +277,7 @@ async def upload_document(
 
     try:
         doc = Document(
+            user_id=current_user.id,
             filename=unique_filename,
             original_filename=safe_name,
             file_path=file_path,
@@ -313,15 +321,13 @@ async def upload_document(
 def process_document(
     document_id: int,
     request: ProcessDocumentRequest = ProcessDocumentRequest(),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Manually trigger or reprocess extraction pipeline for a given document.
+    Manually trigger or reprocess extraction pipeline for a given owned document.
     """
-    doc = db.query(Document).filter(Document.id == document_id).first()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
-
+    doc = get_owned_document(db, document_id, current_user)
     updated_doc = pipeline_service.process_document(db, doc.id, force_ocr=request.force_ocr)
     return updated_doc
 
@@ -333,12 +339,13 @@ def list_documents(
     review_status_filter: Optional[str] = Query(None, alias="review_status"),
     doc_type: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    List all uploaded sustainability documents with filtering, review status filter, and search.
+    List uploaded sustainability documents owned by current_user with filtering and search.
     """
-    query = db.query(Document)
+    query = db.query(Document).filter(Document.user_id == current_user.id)
 
     if status_filter:
         query = query.filter(Document.status == status_filter.upper())
@@ -367,27 +374,27 @@ def list_documents(
     }
 
 @router.get("/documents/{document_id}", response_model=DocumentResponse)
-def get_document(document_id: int, db: Session = Depends(get_db)):
+def get_document(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """
-    Get detailed extracted information for a specific document.
+    Get detailed extracted information for a specific owned document.
     """
-    doc = db.query(Document).filter(Document.id == document_id).first()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
-    return doc
+    return get_owned_document(db, document_id, current_user)
 
 @router.put("/documents/{document_id}/verify-field", response_model=DocumentResponse)
 def verify_field(
     document_id: int,
     request: FieldVerifyRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Mark a specific extracted field as human-verified.
+    Mark a specific extracted field as human-verified for an owned document.
     """
-    doc = db.query(Document).filter(Document.id == document_id).first()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
+    doc = get_owned_document(db, document_id, current_user)
 
     structured = doc.structured_data or {}
     evidence_list = structured.get("evidence", [])
@@ -446,15 +453,14 @@ def verify_field(
 def correct_field(
     document_id: int,
     request: FieldCorrectionRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Correct an extracted field value. Preserves original AI value, stores human correction,
     and writes to the audit trail without permanently overwriting original AI extraction.
     """
-    doc = db.query(Document).filter(Document.id == document_id).first()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
+    doc = get_owned_document(db, document_id, current_user)
 
     structured = doc.structured_data or {}
     evidence_list = structured.get("evidence", [])
@@ -578,14 +584,13 @@ def correct_field(
 def update_review_status(
     document_id: int,
     request: ReviewStatusRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Manually update human review status ('COMPLETED', 'NEEDS_REVIEW', 'VERIFIED').
+    Manually update human review status ('COMPLETED', 'NEEDS_REVIEW', 'VERIFIED') for owned doc.
     """
-    doc = db.query(Document).filter(Document.id == document_id).first()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
+    doc = get_owned_document(db, document_id, current_user)
 
     valid_statuses = ["COMPLETED", "NEEDS_REVIEW", "VERIFIED"]
     new_status = request.review_status.upper()
@@ -621,16 +626,13 @@ def update_review_status(
 def update_classification(
     document_id: int,
     request: ClassificationUpdateRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Manually correct or update document classification.
-    Preserves original AI classification in audit trail, updates expected fields mapping,
-    re-evaluates deterministic quality score, and re-normalizes sustainability metrics.
+    Manually correct or update document classification for owned doc.
     """
-    doc = db.query(Document).filter(Document.id == document_id).first()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
+    doc = get_owned_document(db, document_id, current_user)
 
     old_doc_type = doc.document_type or "Unknown / Other"
     new_doc_type = request.document_type
@@ -689,13 +691,15 @@ def update_classification(
     return doc
 
 @router.post("/documents/{document_id}/normalize")
-def normalize_document_endpoint(document_id: int, db: Session = Depends(get_db)):
+def normalize_document_endpoint(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """
     Normalize extracted document fields into standardized SustainabilityMetric records.
     """
-    doc = db.query(Document).filter(Document.id == document_id).first()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
+    doc = get_owned_document(db, document_id, current_user)
     if not doc.structured_data:
         raise HTTPException(status_code=400, detail="Document has no structured data extracted yet")
 
@@ -714,12 +718,16 @@ def list_normalized_metrics(
     start_date: Optional[str] = Query(None, description="Filter by period start"),
     end_date: Optional[str] = Query(None, description="Filter by period end"),
     verification_status: Optional[str] = Query(None, description="Filter by verification status"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    List standardized sustainability metrics across documents with optional filtering.
+    List standardized sustainability metrics across owned documents with optional filtering.
     """
-    query = db.query(SustainabilityMetric)
+    query = db.query(SustainabilityMetric).join(
+        Document, SustainabilityMetric.document_id == Document.id
+    ).filter(Document.user_id == current_user.id)
+
     if company:
         query = query.filter(SustainabilityMetric.company_name.ilike(f"%{company}%"))
     if metric_type:
@@ -740,12 +748,17 @@ def list_normalized_metrics(
     }
 
 @router.get("/metrics/summary")
-def get_portfolio_metrics_summary(db: Session = Depends(get_db)):
+def get_portfolio_metrics_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """
-    Get portfolio-level aggregated sustainability totals.
+    Get portfolio-level aggregated sustainability totals for owned documents.
     Guarantees unit safety by strictly summing compatible units only.
     """
-    metrics = db.query(SustainabilityMetric).all()
+    metrics = db.query(SustainabilityMetric).join(
+        Document, SustainabilityMetric.document_id == Document.id
+    ).filter(Document.user_id == current_user.id).all()
 
     # Sum only compatible units
     total_electricity_kwh = sum(m.value for m in metrics if m.metric_type == "electricity_consumption" and m.unit == "kWh")
@@ -807,13 +820,18 @@ def get_metrics_trends(
     company: Optional[str] = Query(None, description="Filter by company name"),
     start_date: Optional[str] = Query(None, description="Filter by period start"),
     end_date: Optional[str] = Query(None, description="Filter by period end"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Return chronological sustainability metric history for trend analysis.
-    Sorted chronologically by reporting period. Never fabricates missing periods.
+    Return chronological sustainability metric history for trend analysis for owned documents.
     """
-    query = db.query(SustainabilityMetric).filter(SustainabilityMetric.metric_type == metric_type)
+    query = db.query(SustainabilityMetric).join(
+        Document, SustainabilityMetric.document_id == Document.id
+    ).filter(
+        SustainabilityMetric.metric_type == metric_type,
+        Document.user_id == current_user.id
+    )
     if company:
         query = query.filter(SustainabilityMetric.company_name.ilike(f"%{company}%"))
     if start_date:
@@ -870,12 +888,18 @@ def get_metrics_trends(
 def get_metrics_change(
     metric_type: str = Query("electricity_consumption", description="Metric type to compare"),
     company: Optional[str] = Query(None, description="Filter by company name"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Period-over-period comparison between the latest two reporting periods.
+    Period-over-period comparison between the latest two reporting periods for owned documents.
     """
-    query = db.query(SustainabilityMetric).filter(SustainabilityMetric.metric_type == metric_type)
+    query = db.query(SustainabilityMetric).join(
+        Document, SustainabilityMetric.document_id == Document.id
+    ).filter(
+        SustainabilityMetric.metric_type == metric_type,
+        Document.user_id == current_user.id
+    )
     if company:
         query = query.filter(SustainabilityMetric.company_name.ilike(f"%{company}%"))
 
@@ -933,10 +957,11 @@ def get_sustainability_insights(
     company: Optional[str] = Query(None, description="Filter insights by company name"),
     severity: Optional[str] = Query(None, description="Filter insights by severity (INFO, ATTENTION, REVIEW)"),
     metric_type: Optional[str] = Query(None, description="Filter insights by metric type"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Generate deterministic, explainable sustainability insights across stored documents and metrics.
+    Generate deterministic, explainable sustainability insights across owned documents and metrics.
     """
     insights = insights_service.generate_metric_insights(
         db=db,
@@ -952,13 +977,15 @@ def get_sustainability_insights(
 
 
 @router.get("/documents/{document_id}/audit-trail")
-def get_audit_trail(document_id: int, db: Session = Depends(get_db)):
+def get_audit_trail(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """
-    Get audit history and human correction logs for a document.
+    Get audit history and human correction logs for an owned document.
     """
-    doc = db.query(Document).filter(Document.id == document_id).first()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
+    doc = get_owned_document(db, document_id, current_user)
 
     logs = db.query(AuditLog).filter(AuditLog.document_id == document_id).order_by(desc(AuditLog.timestamp)).all()
     return {
@@ -970,13 +997,15 @@ def get_audit_trail(document_id: int, db: Session = Depends(get_db)):
     }
 
 @router.delete("/documents/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_document(document_id: int, db: Session = Depends(get_db)):
+def delete_document(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """
-    Delete a document and its stored PDF from disk.
+    Delete an owned document and its stored PDF from disk.
     """
-    doc = db.query(Document).filter(Document.id == document_id).first()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
+    doc = get_owned_document(db, document_id, current_user)
 
     if os.path.exists(doc.file_path):
         try:
@@ -989,13 +1018,15 @@ def delete_document(document_id: int, db: Session = Depends(get_db)):
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 @router.get("/documents/{document_id}/download-json")
-def download_document_json(document_id: int, db: Session = Depends(get_db)):
+def download_document_json(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """
-    Export structured extraction data as a downloadable JSON file.
+    Export structured extraction data as a downloadable JSON file for an owned document.
     """
-    doc = db.query(Document).filter(Document.id == document_id).first()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
+    doc = get_owned_document(db, document_id, current_user)
     if not doc.structured_data:
         raise HTTPException(status_code=400, detail="Document has no structured data extracted yet")
 
@@ -1009,13 +1040,17 @@ def download_document_json(document_id: int, db: Session = Depends(get_db)):
     )
 
 @router.get("/documents/{document_id}/evidence-report", response_model=ReportData)
-def get_document_evidence_report(document_id: int, db: Session = Depends(get_db)):
+def get_document_evidence_report(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """
-    Generate grounded sustainability evidence report data for a specific document.
-    Deterministic, document-scoped, read-only.
+    Generate grounded sustainability evidence report data for a specific owned document.
     """
+    doc = get_owned_document(db, document_id, current_user)
     try:
-        report_data = evidence_report_service.generate_report(db, document_id)
+        report_data = evidence_report_service.generate_report(db, doc.id)
         return report_data
     except ValueError as ve:
         raise HTTPException(status_code=404, detail=str(ve))
@@ -1024,13 +1059,17 @@ def get_document_evidence_report(document_id: int, db: Session = Depends(get_db)
         raise HTTPException(status_code=500, detail="Failed to generate evidence report")
 
 @router.get("/documents/{document_id}/evidence-report/pdf")
-def download_document_evidence_report_pdf(document_id: int, db: Session = Depends(get_db)):
+def download_document_evidence_report_pdf(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """
-    Generate and download deterministic PDF for document sustainability evidence report.
-    Consumes the identical ReportData object to prevent data divergence.
+    Generate and download deterministic PDF for document sustainability evidence report for owned document.
     """
+    doc = get_owned_document(db, document_id, current_user)
     try:
-        report_data = evidence_report_service.generate_report(db, document_id)
+        report_data = evidence_report_service.generate_report(db, doc.id)
         pdf_bytes = report_pdf_renderer.render(report_data)
 
         safe_filename = f"sustainability_report_doc_{document_id}.pdf"
@@ -1133,13 +1172,18 @@ def list_activity_data(
     status: Optional[str] = Query(None, description="Filter by normalization status"),
     activity_role: Optional[str] = Query(None, description="Filter by role: TOTAL, COMPONENT, SUPPORTING"),
     calculation_eligible: Optional[bool] = Query(None, description="Filter by calculation eligibility"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    List canonical ActivityData records with multi-parameter filtering.
+    List canonical ActivityData records for owned documents with multi-parameter filtering.
     """
-    query = db.query(ActivityData)
+    query = db.query(ActivityData).join(
+        Document, ActivityData.document_id == Document.id
+    ).filter(Document.user_id == current_user.id)
+
     if document_id is not None:
+        get_owned_document(db, document_id, current_user)
         query = query.filter(ActivityData.document_id == document_id)
     if activity_type:
         query = query.filter(ActivityData.activity_type == activity_type.strip().lower())
@@ -1168,26 +1212,33 @@ def preview_normalize_activity(
     return activity_data_normalizer.preview_normalization(payload)
 
 @router.get("/activity-data/{activity_id}", response_model=ActivityDataResponse)
-def get_activity_data_by_id(activity_id: int, db: Session = Depends(get_db)):
+def get_activity_data_by_id(
+    activity_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """
-    Retrieve single canonical ActivityData record by ID.
+    Retrieve single canonical ActivityData record by ID for an owned document.
     """
     record = db.query(ActivityData).filter(ActivityData.id == activity_id).first()
     if not record:
         raise HTTPException(status_code=404, detail="Activity data record not found")
+    get_owned_document(db, record.document_id, current_user)
     return record
 
 @router.get("/documents/{document_id}/activity-data", response_model=ActivityDataListResponse)
-def get_document_activity_data(document_id: int, db: Session = Depends(get_db)):
+def get_document_activity_data(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """
-    Retrieve all canonical ActivityData records for a specific document.
+    Retrieve all canonical ActivityData records for a specific owned document.
     """
-    doc = db.query(Document).filter(Document.id == document_id).first()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
+    doc = get_owned_document(db, document_id, current_user)
 
     records = db.query(ActivityData).filter(
-        ActivityData.document_id == document_id
+        ActivityData.document_id == doc.id
     ).order_by(ActivityData.id.asc()).all()
 
     return {
@@ -1202,11 +1253,15 @@ def get_document_activity_data(document_id: int, db: Session = Depends(get_db)):
 @router.post("/carbon-calculations/calculate", response_model=CarbonCalculationResponse)
 def calculate_single_activity(
     payload: CarbonCalculationRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Calculate CO2e emissions for a single canonical ActivityData record.
+    Calculate CO2e emissions for a single canonical ActivityData record of an owned document.
     """
+    act = db.query(ActivityData).filter(ActivityData.id == payload.activity_data_id).first()
+    if act:
+        get_owned_document(db, act.document_id, current_user)
     return carbon_calculation_engine.calculate_activity(db, payload)
 
 @router.get("/carbon-calculations", response_model=CarbonCalculationListResponse)
@@ -1217,13 +1272,18 @@ def list_carbon_calculations(
     scope: Optional[str] = Query(None, description="Filter by scope"),
     status: Optional[str] = Query(None, description="Filter by status"),
     reporting_year: Optional[int] = Query(None, description="Filter by reporting year"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    List carbon calculation records with multi-parameter filtering.
+    List carbon calculation records for owned documents with multi-parameter filtering.
     """
-    query = db.query(CarbonCalculation)
+    query = db.query(CarbonCalculation).join(
+        Document, CarbonCalculation.document_id == Document.id
+    ).filter(Document.user_id == current_user.id)
+
     if document_id is not None:
+        get_owned_document(db, document_id, current_user)
         query = query.filter(CarbonCalculation.document_id == document_id)
     if activity_data_id is not None:
         query = query.filter(CarbonCalculation.activity_data_id == activity_data_id)
@@ -1243,34 +1303,43 @@ def list_carbon_calculations(
     }
 
 @router.get("/carbon-calculations/{calc_id}", response_model=CarbonCalculationResponse)
-def get_carbon_calculation_by_id(calc_id: int, db: Session = Depends(get_db)):
+def get_carbon_calculation_by_id(
+    calc_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """
-    Retrieve single CarbonCalculation record by ID.
+    Retrieve single CarbonCalculation record by ID for an owned document.
     """
     record = db.query(CarbonCalculation).filter(CarbonCalculation.id == calc_id).first()
     if not record:
         raise HTTPException(status_code=404, detail="Carbon calculation record not found")
+    get_owned_document(db, record.document_id, current_user)
     return record
 
 @router.get("/documents/{document_id}/carbon-calculations", response_model=DocumentCarbonCalculationSummary)
-def get_document_carbon_calculations(document_id: int, db: Session = Depends(get_db)):
+def get_document_carbon_calculations(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """
-    Retrieve aggregated carbon calculation summary for a document.
+    Retrieve aggregated carbon calculation summary for an owned document.
     """
-    doc = db.query(Document).filter(Document.id == document_id).first()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
-    return carbon_calculation_engine.calculate_document_emissions(db, document_id)
+    doc = get_owned_document(db, document_id, current_user)
+    return carbon_calculation_engine.calculate_document_emissions(db, doc.id)
 
 @router.post("/documents/{document_id}/carbon-calculations/calculate", response_model=DocumentCarbonCalculationSummary)
-def calculate_document_carbon_emissions(document_id: int, db: Session = Depends(get_db)):
+def calculate_document_carbon_emissions(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """
-    Batch calculate carbon emissions for all ActivityData associated with a document.
+    Batch calculate carbon emissions for all ActivityData associated with an owned document.
     """
-    doc = db.query(Document).filter(Document.id == document_id).first()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
-    return carbon_calculation_engine.calculate_document_emissions(db, document_id)
+    doc = get_owned_document(db, document_id, current_user)
+    return carbon_calculation_engine.calculate_document_emissions(db, doc.id)
 
 
 # ==========================================
@@ -1280,25 +1349,31 @@ def calculate_document_carbon_emissions(document_id: int, db: Session = Depends(
 @router.post("/carbon-ledger/post", response_model=CarbonLedgerEntryResponse)
 def post_single_ledger_entry(
     payload: CarbonLedgerPostRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Post a single CarbonCalculation into the accounting ledger.
+    Post a single CarbonCalculation into the accounting ledger for an owned document.
     """
+    calc = db.query(CarbonCalculation).filter(CarbonCalculation.id == payload.carbon_calculation_id).first()
+    if calc:
+        get_owned_document(db, calc.document_id, current_user)
     try:
         return carbon_ledger_service.post_calculation(db, payload.carbon_calculation_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
 @router.post("/documents/{document_id}/carbon-ledger/post", response_model=DocumentLedgerSummary)
-def post_document_carbon_ledger(document_id: int, db: Session = Depends(get_db)):
+def post_document_carbon_ledger(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """
-    Post all eligible calculations for a document into the accounting ledger.
+    Post all eligible calculations for an owned document into the accounting ledger.
     """
-    doc = db.query(Document).filter(Document.id == document_id).first()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
-    return carbon_ledger_service.post_document(db, document_id)
+    doc = get_owned_document(db, document_id, current_user)
+    return carbon_ledger_service.post_document(db, doc.id)
 
 @router.get("/carbon-ledger/summary", response_model=LedgerAggregationResponse)
 def get_carbon_ledger_summary(
@@ -1307,10 +1382,11 @@ def get_carbon_ledger_summary(
     scope: Optional[str] = Query(None, description="Filter by scope"),
     category: Optional[str] = Query(None, description="Filter by category"),
     activity_type: Optional[str] = Query(None, description="Filter by activity type"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Retrieve global or filtered accounting ledger summary.
+    Retrieve accounting ledger summary scoped to owned documents.
     """
     return carbon_ledger_service.get_ledger_summary(
         db,
@@ -1331,13 +1407,18 @@ def list_carbon_ledger(
     reporting_year: Optional[int] = Query(None, description="Filter by reporting year"),
     reporting_period: Optional[str] = Query(None, description="Filter by reporting period"),
     accounting_status: Optional[str] = Query(None, description="Filter by accounting status"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    List CarbonLedgerEntry records with multi-dimensional filtering.
+    List CarbonLedgerEntry records for owned documents with multi-dimensional filtering.
     """
-    query = db.query(CarbonLedgerEntry)
+    query = db.query(CarbonLedgerEntry).join(
+        Document, CarbonLedgerEntry.document_id == Document.id
+    ).filter(Document.user_id == current_user.id)
+
     if document_id is not None:
+        get_owned_document(db, document_id, current_user)
         query = query.filter(CarbonLedgerEntry.document_id == document_id)
     if carbon_calculation_id is not None:
         query = query.filter(CarbonLedgerEntry.carbon_calculation_id == carbon_calculation_id)
@@ -1361,34 +1442,43 @@ def list_carbon_ledger(
     }
 
 @router.get("/carbon-ledger/{id}", response_model=CarbonLedgerEntryResponse)
-def get_carbon_ledger_entry_by_id(id: int, db: Session = Depends(get_db)):
+def get_carbon_ledger_entry_by_id(
+    id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """
-    Retrieve single CarbonLedgerEntry record by ID.
+    Retrieve single CarbonLedgerEntry record by ID for an owned document.
     """
     record = db.query(CarbonLedgerEntry).filter(CarbonLedgerEntry.id == id).first()
     if not record:
         raise HTTPException(status_code=404, detail="Carbon ledger entry not found")
+    get_owned_document(db, record.document_id, current_user)
     return record
 
 @router.get("/documents/{document_id}/carbon-ledger", response_model=DocumentLedgerSummary)
-def get_document_carbon_ledger(document_id: int, db: Session = Depends(get_db)):
+def get_document_carbon_ledger(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """
-    Retrieve document-level accounting ledger summary.
+    Retrieve document-level accounting ledger summary for an owned document.
     """
-    doc = db.query(Document).filter(Document.id == document_id).first()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
-    return carbon_ledger_service.get_document_ledger(db, document_id)
+    doc = get_owned_document(db, document_id, current_user)
+    return carbon_ledger_service.get_document_ledger(db, doc.id)
 
 @router.get("/documents/{document_id}/carbon-ledger/reconciliation", response_model=LedgerReconciliationResponse)
-def get_document_carbon_reconciliation(document_id: int, db: Session = Depends(get_db)):
+def get_document_carbon_reconciliation(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """
-    Retrieve deterministic reconciliation between extracted document metrics and calculated/posted ledger values.
+    Retrieve deterministic reconciliation between extracted document metrics and calculated/posted ledger values for an owned document.
     """
-    doc = db.query(Document).filter(Document.id == document_id).first()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
-    return carbon_ledger_service.get_document_reconciliation(db, document_id)
+    doc = get_owned_document(db, document_id, current_user)
+    return carbon_ledger_service.get_document_reconciliation(db, doc.id)
 
 
 # ==========================================
@@ -1402,11 +1492,14 @@ def get_carbon_dashboard(
     scope: Optional[str] = Query(None, description="Filter by scope"),
     category: Optional[str] = Query(None, description="Filter by category"),
     document_id: Optional[int] = Query(None, description="Filter by document ID"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Retrieve full carbon footprint dashboard payload with KPI summaries, breakdowns, trends, coverage, and reconciliation.
+    Retrieve carbon footprint dashboard payload scoped to owned documents.
     """
+    if document_id is not None:
+        get_owned_document(db, document_id, current_user)
     return carbon_dashboard_service.get_full_dashboard(
         db,
         reporting_year=reporting_year,
@@ -1423,11 +1516,14 @@ def get_carbon_dashboard_summary(
     scope: Optional[str] = Query(None, description="Filter by scope"),
     category: Optional[str] = Query(None, description="Filter by category"),
     document_id: Optional[int] = Query(None, description="Filter by document ID"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Retrieve high-level executive carbon footprint KPI summary.
+    Retrieve high-level executive carbon footprint KPI summary scoped to owned documents.
     """
+    if document_id is not None:
+        get_owned_document(db, document_id, current_user)
     return carbon_dashboard_service.get_dashboard_summary(
         db,
         reporting_year=reporting_year,
@@ -2417,11 +2513,14 @@ def get_green_finance_assessment_pdf_endpoint(
     )
 
 @router.get("/stats", response_model=DashboardStatsResponse)
-def get_dashboard_stats(db: Session = Depends(get_db)):
+def get_dashboard_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """
-    Get aggregated MSME sustainability, human review, and document processing statistics.
+    Get aggregated MSME sustainability, human review, and document processing statistics for owned documents.
     """
-    docs = db.query(Document).all()
+    docs = db.query(Document).filter(Document.user_id == current_user.id).all()
     
     total = len(docs)
     processed = sum(1 for d in docs if d.status == "COMPLETED")
@@ -2470,10 +2569,11 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
 @router.post("/documents/sample-seed", status_code=status.HTTP_201_CREATED)
 def seed_sample_documents(
     sample_type: str = Query("electricity", description="electricity | esg | scanned | adversarial"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Generate and process a realistic sample MSME sustainability PDF for immediate test/demo.
+    Generate and process a realistic sample MSME sustainability PDF for the current user.
     """
     os.makedirs(UPLOAD_DIR, exist_ok=True)
     filename_map = {
@@ -2501,6 +2601,7 @@ def seed_sample_documents(
     file_size = os.path.getsize(file_path)
 
     doc = Document(
+        user_id=current_user.id,
         filename=target_filename,
         original_filename=target_filename,
         file_path=file_path,
@@ -2520,7 +2621,8 @@ def seed_sample_documents(
 @router.post("/copilot/chat", response_model=CopilotResponse)
 def copilot_chat(
     request: CopilotRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Senseible AI Copilot conversation endpoint (Step 11C grounded Q&A).
@@ -2539,12 +2641,22 @@ def copilot_chat(
                 detail="Message exceeds maximum allowed length of 2000 characters."
             )
         
-        response = copilot_service.chat(db, cleaned_msg, history=request.history, document_id=request.document_id)
+        if request.document_id is not None:
+            get_owned_document(db, request.document_id, current_user)
+        
+        response = copilot_service.chat(
+            db,
+            cleaned_msg,
+            history=request.history,
+            document_id=request.document_id,
+            user_id=current_user.id
+        )
         return response
     except HTTPException:
         raise
     except Exception as e:
         # Never expose internal exception details or stack traces
+        logger.error(f"Error in copilot_chat: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while processing your request with Copilot. Please try again."
@@ -2554,24 +2666,26 @@ def copilot_chat(
 @router.get("/copilot/context", response_model=CopilotContext)
 def get_copilot_context(
     query: str = Query("What documents do I have?", description="User query for context retrieval"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Development/debug endpoint to inspect the structured grounded context generated
-    for a given query across documents, metrics, evidence, and deterministic insights.
+    for a given query across owned documents, metrics, evidence, and deterministic insights.
     """
     return copilot_context_service.build_context(db, query)
 
 
 @router.get("/copilot/attention", response_model=AttentionResponse)
 def get_copilot_attention(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Senseible AI Copilot Proactive Attention Engine (Step 11D).
-    Returns prioritized, deduplicated operational attention items and category counts.
+    Returns prioritized, deduplicated operational attention items scoped to owned documents.
     """
-    return copilot_attention_service.get_attention_items(db)
+    return copilot_attention_service.get_attention_items(db, user_id=current_user.id)
 
 
 from backend.app.api.industry_benchmark import router as benchmark_router

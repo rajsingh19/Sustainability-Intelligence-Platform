@@ -808,7 +808,12 @@ class TestSafetyBoundaries:
 
 @pytest.fixture(scope="module", autouse=True)
 def setup_api_database():
-    init_db()
+    import os
+    if os.path.exists("./dev.db"):
+        try:
+            os.remove("./dev.db")
+        except Exception:
+            pass
     api_engine = create_engine("sqlite:///./dev.db", echo=False)
     Base.metadata.create_all(bind=api_engine)
     TestingSessionLocal = sessionmaker(bind=api_engine)
@@ -823,6 +828,11 @@ def setup_api_database():
     app.dependency_overrides[get_db] = override_get_db
     yield
     app.dependency_overrides.clear()
+    if os.path.exists("./dev.db"):
+        try:
+            os.remove("./dev.db")
+        except Exception:
+            pass
 
 
 @pytest.fixture

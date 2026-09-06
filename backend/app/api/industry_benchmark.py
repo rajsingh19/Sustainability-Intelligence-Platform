@@ -24,6 +24,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
 
 from backend.app.database.session import get_db
+from backend.app.models.user import User
+from backend.app.services.auth import get_current_user
+from backend.app.services.security import get_owned_document
 from backend.app.models.industry_benchmark import (
     BusinessProfile,
     IndustryBenchmark,
@@ -57,14 +60,21 @@ router = APIRouter(prefix="/benchmarks", tags=["Industry Benchmarking"])
 # ---------------------------------------------------------------------------
 
 @router.get("/profile", response_model=BusinessProfileResponse)
-def get_business_profile(db: Session = Depends(get_db)):
+def get_business_profile(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Fetch current business profile segmentation and provenance."""
     profile = BenchmarkEligibilityService.get_or_create_default_profile(db)
     return profile
 
 
 @router.put("/profile", response_model=BusinessProfileResponse)
-def update_business_profile(update_data: BusinessProfileUpdate, db: Session = Depends(get_db)):
+def update_business_profile(
+    update_data: BusinessProfileUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Update business profile fields with strict provenance tracking (Patch 1 & 8)."""
     profile = BenchmarkEligibilityService.get_or_create_default_profile(db)
 
@@ -87,9 +97,12 @@ def get_benchmark_eligibility(
     document_id: Optional[int] = Query(None, description="Optional document filter"),
     reporting_period: Optional[str] = Query(None, description="Optional reporting period"),
     include_fixtures: bool = Query(False, description="Include test fixtures"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Deterministic eligibility check for industry benchmarking."""
+    if document_id:
+        get_owned_document(db, document_id, current_user)
     profile = BenchmarkEligibilityService.get_or_create_default_profile(db)
     return BenchmarkEligibilityService.evaluate_eligibility(
         db, profile, document_id, reporting_period, include_fixtures
@@ -100,12 +113,15 @@ def get_benchmark_eligibility(
 def evaluate_benchmarks(
     req: BenchmarkEvaluationRequest,
     include_fixtures: bool = Query(False, description="Include test fixtures"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
     Deterministic & idempotent evaluation of actual posted carbon ledger performance
     against peer industry benchmarks.
     """
+    if req.document_id:
+        get_owned_document(db, req.document_id, current_user)
     comparisons = industry_benchmark_service.evaluate_benchmarks(
         db=db,
         reporting_period=req.reporting_period,
@@ -133,9 +149,12 @@ def recalculate_benchmarks(
     reporting_period: Optional[str] = Query(None),
     document_id: Optional[int] = Query(None),
     include_fixtures: bool = Query(False),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Force re-evaluation of all benchmark comparisons."""
+    if document_id:
+        get_owned_document(db, document_id, current_user)
     comparisons = industry_benchmark_service.evaluate_benchmarks(
         db=db,
         reporting_period=reporting_period,
@@ -161,6 +180,7 @@ def list_benchmarks(
     metric_name: Optional[str] = Query(None),
     status: Optional[str] = Query("ACTIVE"),
     include_fixtures: bool = Query(False, description="Exclude test fixtures in production (Patch 4)"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """List registered benchmarks with provenance, isolating test fixtures."""
@@ -184,6 +204,7 @@ def list_benchmarks(
 @router.get("/sources", response_model=BenchmarkSourcesResponse)
 def get_benchmark_sources(
     include_fixtures: bool = Query(False),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """List benchmark data sources with authority types (Patch 3 & 4)."""
@@ -230,9 +251,12 @@ def get_benchmark_sources(
 def get_benchmark_summary(
     document_id: Optional[int] = Query(None),
     reporting_period: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get high-level benchmark summary for UI cards and dashboard integration."""
+    if document_id:
+        get_owned_document(db, document_id, current_user)
     summary_data = industry_benchmark_service.get_benchmark_summary(
         db, document_id, reporting_period
     )
@@ -253,9 +277,12 @@ def get_benchmark_summary(
 def get_benchmark_insights(
     document_id: Optional[int] = Query(None),
     reporting_period: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Retrieve deterministic benchmark insights."""
+    if document_id:
+        get_owned_document(db, document_id, current_user)
     q = db.query(BenchmarkComparison)
     if document_id:
         q = q.filter(BenchmarkComparison.source_document_id == document_id)
@@ -269,7 +296,10 @@ def get_benchmark_insights(
 
 
 @router.get("/data-quality", response_model=BenchmarkDataQualityResponse)
-def get_benchmark_data_quality(db: Session = Depends(get_db)):
+def get_benchmark_data_quality(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Assess benchmark and actual data quality state (Patch 15 from prompt)."""
     profile = BenchmarkEligibilityService.get_or_create_default_profile(db)
     comparisons = db.query(BenchmarkComparison).all()
@@ -308,9 +338,12 @@ def list_benchmark_comparisons(
     reporting_period: Optional[str] = Query(None),
     metric_name: Optional[str] = Query(None),
     classification: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """List benchmark comparison records."""
+    if document_id:
+        get_owned_document(db, document_id, current_user)
     q = db.query(BenchmarkComparison)
     if document_id:
         q = q.filter(BenchmarkComparison.source_document_id == document_id)
@@ -329,7 +362,11 @@ def list_benchmark_comparisons(
 
 
 @router.get("/comparisons/{comparison_id}", response_model=BenchmarkComparisonResponse)
-def get_benchmark_comparison_detail(comparison_id: int, db: Session = Depends(get_db)):
+def get_benchmark_comparison_detail(
+    comparison_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Retrieve detail of a specific benchmark comparison record."""
     comp = db.query(BenchmarkComparison).filter(BenchmarkComparison.id == comparison_id).first()
     if not comp:
@@ -340,6 +377,7 @@ def get_benchmark_comparison_detail(comparison_id: int, db: Session = Depends(ge
 @router.get("/history", response_model=BenchmarkComparisonListResponse)
 def get_benchmark_history(
     metric_name: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Retrieve historical benchmark comparisons across version iterations (Patch 10)."""
@@ -355,7 +393,11 @@ def get_benchmark_history(
 
 
 @router.get("/{benchmark_id}", response_model=IndustryBenchmarkResponse)
-def get_benchmark_detail(benchmark_id: int, db: Session = Depends(get_db)):
+def get_benchmark_detail(
+    benchmark_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Retrieve detail of a registered industry benchmark."""
     bench = db.query(IndustryBenchmark).filter(IndustryBenchmark.id == benchmark_id).first()
     if not bench:
