@@ -160,12 +160,24 @@ class CopilotContextService:
     and deterministic insights without hallucination or LLM generation.
     """
 
-    def build_summary(self, db: Session) -> CopilotSummary:
-        """Calculate deterministic summary counters directly from the database."""
-        doc_count = db.query(func.count(Document.id)).scalar() or 0
-        needs_review = db.query(func.count(Document.id)).filter(Document.review_status == "NEEDS_REVIEW").scalar() or 0
-        verified = db.query(func.count(Document.id)).filter(Document.review_status == "VERIFIED").scalar() or 0
-        metric_count = db.query(func.count(SustainabilityMetric.id)).scalar() or 0
+    def build_summary(self, db: Session, user_id: Optional[int] = None) -> CopilotSummary:
+        """Calculate deterministic summary counters directly from the database, scoped to user."""
+        base_q = db.query(func.count(Document.id))
+        if user_id is not None:
+            base_q = base_q.filter(Document.user_id == user_id)
+        doc_count = base_q.scalar() or 0
+        needs_review_q = db.query(func.count(Document.id)).filter(Document.review_status == "NEEDS_REVIEW")
+        verified_q = db.query(func.count(Document.id)).filter(Document.review_status == "VERIFIED")
+        if user_id is not None:
+            needs_review_q = needs_review_q.filter(Document.user_id == user_id)
+            verified_q = verified_q.filter(Document.user_id == user_id)
+        needs_review = needs_review_q.scalar() or 0
+        verified = verified_q.scalar() or 0
+
+        metric_q = db.query(func.count(SustainabilityMetric.id))
+        if user_id is not None:
+            metric_q = metric_q.join(Document, SustainabilityMetric.document_id == Document.id).filter(Document.user_id == user_id)
+        metric_count = metric_q.scalar() or 0
 
         # Active attention items = review docs + actionable insights
         insights = insights_service.generate_metric_insights(db)
@@ -210,14 +222,16 @@ class CopilotContextService:
         db: Session,
         query: str,
         history: Optional[List[Dict[str, str]]] = None,
-        document_id: Optional[int] = None
+        document_id: Optional[int] = None,
+        user_id: Optional[int] = None
     ) -> CopilotContext:
         """
         Build compact, intent-aware grounded context object from real Senseible data.
         If document_id is provided, scopes all context strictly to that document.
+        If user_id is provided, scopes all context to that user's owned documents.
         """
         intent = classify_intent(query, history=history)
-        summary = self.build_summary(db)
+        summary = self.build_summary(db, user_id=user_id)
 
         docs_ctx: List[DocumentContext] = []
         metrics_ctx: List[MetricContext] = []
@@ -226,9 +240,21 @@ class CopilotContextService:
         sources_ctx: List[SourceContext] = []
         historical_comparisons: List[Dict[str, Any]] = []
 
-        all_docs = db.query(Document).order_by(desc(Document.created_at)).all()
-        all_metrics = db.query(SustainabilityMetric).order_by(desc(SustainabilityMetric.created_at)).all()
+        docs_query = db.query(Document).order_by(desc(Document.created_at))
+        if user_id is not None:
+            docs_query = docs_query.filter(Document.user_id == user_id)
+        all_docs = docs_query.all()
+
+        metrics_query = db.query(SustainabilityMetric).order_by(desc(SustainabilityMetric.created_at))
+        if user_id is not None:
+            metrics_query = metrics_query.join(Document, SustainabilityMetric.document_id == Document.id).filter(Document.user_id == user_id)
+        all_metrics = metrics_query.all()
+
         all_insights = insights_service.generate_metric_insights(db)
+        if user_id is not None:
+            # scope insights to user's document IDs
+            user_doc_ids = {d.id for d in all_docs}
+            all_insights = [i for i in all_insights if i.source_document_id in user_doc_ids]
 
         target_doc = None
         if document_id is not None:

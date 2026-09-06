@@ -2673,7 +2673,7 @@ def get_copilot_context(
     Development/debug endpoint to inspect the structured grounded context generated
     for a given query across owned documents, metrics, evidence, and deterministic insights.
     """
-    return copilot_context_service.build_context(db, query)
+    return copilot_context_service.build_context(db, query, user_id=current_user.id)
 
 
 @router.get("/copilot/attention", response_model=AttentionResponse)
