@@ -1,7 +1,16 @@
 import axios from 'axios';
 
+export const getApiBaseUrl = () => {
+  const rawUrl = (import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || '').trim();
+  if (!rawUrl) {
+    return '/api';
+  }
+  const cleanUrl = rawUrl.replace(/\/+$/, '');
+  return cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
+};
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: getApiBaseUrl(),
   timeout: 60000,
 });
 
@@ -550,7 +559,7 @@ export const updateDisclosureUserValue = async (disclosureId, value, valueUnit =
 };
 
 export const getComplianceReportPdfUrl = (reportId) => {
-  return `/api/compliance-reports/${reportId}/pdf`;
+  return `${getApiBaseUrl()}/compliance-reports/${reportId}/pdf`;
 };
 
 // --- Green Finance / Green Loan Readiness Engine API Methods (Step 19) ---
@@ -596,7 +605,7 @@ export const finalizeGreenFinanceAssessment = async (assessmentId) => {
 };
 
 export const getGreenFinanceAssessmentPdfUrl = (assessmentId) => {
-  return `/api/green-finance/assessments/${assessmentId}/pdf`;
+  return `${getApiBaseUrl()}/green-finance/assessments/${assessmentId}/pdf`;
 };
 
 // --- Carbon Credit Readiness & Project Eligibility Assessment API Methods (Step 20) ---
@@ -667,7 +676,7 @@ export const getCarbonCreditMethodology = async (assessmentId) => {
 };
 
 export const getCarbonCreditAssessmentPdfUrl = (assessmentId) => {
-  return `/api/carbon-credit/assessments/${assessmentId}/pdf`;
+  return `${getApiBaseUrl()}/carbon-credit/assessments/${assessmentId}/pdf`;
 };
 
 // ============================================================================
