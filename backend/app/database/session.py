@@ -9,6 +9,8 @@ from sqlalchemy.pool import NullPool
 BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
 DEFAULT_DB_PATH = BACKEND_DIR / "senseible_documents.db"
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DEFAULT_DB_PATH}")
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 engine_kwargs = {"echo": False}
 if DATABASE_URL.startswith("sqlite"):
