@@ -78,7 +78,7 @@ class QualitySummary(BaseModel):
     scoring_breakdown: Dict[str, float] = Field(default_factory=dict, description="Transparent deterministic scoring breakdown")
 
 class ExtractionMetadata(BaseModel):
-    provider: str = Field("openai", description="'openai' or 'heuristic_fallback'")
+    provider: str = Field("gemini", description="'gemini' or 'heuristic_fallback'")
     model: Optional[str] = Field(None, description="LLM model identifier or heuristic engine version")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Overall document confidence score (0.0 to 1.0)")
     extraction_method: Optional[str] = Field(None, description="'pymupdf' or 'ocr_fallback'")
@@ -93,7 +93,7 @@ class SustainabilityDocumentExtraction(BaseModel):
     )
     confidence_score: float = Field(..., ge=0.0, le=1.0, description="Overall confidence score (0.0 to 1.0)")
     executive_summary: str = Field(..., description="A concise factual summary based ONLY on explicit document data")
-    metadata: ExtractionMetadata = Field(default_factory=lambda: ExtractionMetadata(provider="openai", confidence=0.9))
+    metadata: ExtractionMetadata = Field(default_factory=lambda: ExtractionMetadata(provider="gemini", confidence=0.9))
     quality_summary: QualitySummary = Field(default_factory=QualitySummary)
     company: CompanyInfo = Field(default_factory=CompanyInfo)
     period: PeriodInfo = Field(default_factory=PeriodInfo)

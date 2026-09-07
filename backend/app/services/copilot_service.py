@@ -40,7 +40,7 @@ class CopilotService:
             user_id=user_id
         )
         
-        # 2. Generate grounded answer via CopilotLLMService (Live OpenAI or Deterministic Fallback)
+        # 2. Generate grounded answer via CopilotLLMService (Live Google Gemini or Deterministic Fallback)
         response = copilot_llm_service.generate_response(
             rag_context,
             history=history,

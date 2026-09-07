@@ -3,7 +3,8 @@ import json
 import re
 import logging
 from typing import Dict, Any, Optional, List, Union
-from openai import OpenAI
+from google import genai
+from google.genai import types
 
 from backend.app.schemas.copilot import (
     CopilotContext,
@@ -16,6 +17,8 @@ from backend.app.schemas.copilot import (
 from backend.app.services.copilot_rag import CopilotRAGRouter, ParsedQueryIntent
 
 logger = logging.getLogger("senseible-copilot-llm")
+
+DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
 
 
 COPILOT_SYSTEM_PROMPT = """You are Senseible AI Copilot, a precise and trustworthy sustainability operations assistant for MSME enterprise businesses.
@@ -60,15 +63,21 @@ class CopilotLLMService:
     def __init__(self, api_key: Optional[Any] = None, model: Optional[str] = None, db: Optional[Any] = None):
         if not isinstance(api_key, str) and api_key is not None:
             self.db = api_key
-            self.api_key = os.getenv("OPENAI_API_KEY")
+            self.api_key = os.getenv("GEMINI_API_KEY")
         else:
-            self.api_key = api_key or os.getenv("OPENAI_API_KEY")
+            self.api_key = api_key or os.getenv("GEMINI_API_KEY")
             self.db = db
-        self.model = model or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-        self.client = OpenAI(api_key=self.api_key) if (self.api_key and isinstance(self.api_key, str) and not self.api_key.startswith("your-")) else None
+        self.model = model or os.getenv("GEMINI_MODEL", DEFAULT_GEMINI_MODEL)
+        self.client = None
+        if self.is_configured():
+            try:
+                self.client = genai.Client(api_key=self.api_key)
+            except Exception as e:
+                logger.warning(f"Failed to initialize Gemini client for Copilot: {e}")
+                self.client = None
 
     def is_configured(self) -> bool:
-        return bool(self.client)
+        return bool(self.api_key and isinstance(self.api_key, str) and not self.api_key.startswith("your-") and len(self.api_key) > 5)
 
     def generate_response(
         self,
@@ -78,7 +87,7 @@ class CopilotLLMService:
         document_id: Optional[int] = None
     ) -> CopilotResponse:
         """
-        Generate grounded Copilot answer using OpenAI LLM or deterministic fallback engine.
+        Generate grounded Copilot answer using Google Gemini LLM or deterministic fallback engine.
         """
         recs = recommendations or []
         
@@ -93,19 +102,19 @@ class CopilotLLMService:
                 f"[{src_id}] Doc #{src.document_id} ({src.document_name}) - Field '{src.field}': {val_str} | Evidence: \"{src.source_text or 'Direct extraction'}\""
             )
 
-        # 1. Try Live OpenAI LLM if configured
+        # 1. Try Live Gemini LLM if configured
         if self.is_configured():
             try:
-                llm_response = self._call_openai(context, source_context_snippets, source_map, history, recs)
+                llm_response = self._call_gemini(context, source_context_snippets, source_map, history, recs)
                 if llm_response:
                     return llm_response
             except Exception as e:
-                logger.warning(f"OpenAI Copilot call failed ({e}). Falling back to deterministic grounding.")
+                logger.warning(f"Gemini Copilot call failed ({e}). Falling back to deterministic grounding.")
 
         # 2. Deterministic Grounded Engine (Always reliable, non-hallucinating, and zero-cost)
         return self._generate_deterministic_response(context, source_map, recs, document_id=document_id, history=history)
 
-    def _call_openai(
+    def _call_gemini(
         self,
         context: Union[CopilotContext, RAGContext],
         source_snippets: List[str],
@@ -113,7 +122,7 @@ class CopilotLLMService:
         history: Optional[List[Dict[str, str]]] = None,
         recommendations: Optional[List[RecommendationItem]] = None
     ) -> Optional[CopilotResponse]:
-        """Call OpenAI chat completions with structured RAG JSON response."""
+        """Call Google Gemini with structured RAG JSON response."""
         recs = recommendations or []
         rag_metrics = getattr(context, "rag_metrics", [])
         metrics_payload = [m.model_dump() for m in rag_metrics] if rag_metrics else [m.model_dump() for m in getattr(context, "metrics", [])]
@@ -134,32 +143,33 @@ class CopilotLLMService:
             "historical_comparisons": context.historical_comparisons
         }
 
-        messages = [
-            {"role": "system", "content": COPILOT_SYSTEM_PROMPT},
-        ]
-
-        # Append last 6 recent history turns for conversational follow-ups
+        content_parts = []
         if history:
             for turn in history[-6:]:
                 role = turn.get("role", "user")
                 if role in ("user", "assistant"):
-                    messages.append({"role": role, "content": turn.get("content", "")})
+                    content_parts.append(f"{role.upper()}: {turn.get('content', '')}")
 
-        messages.append({
-            "role": "user",
-            "content": f"User Question: \"{context.query}\"\n\nSenseible Grounded Hybrid Context (DATA ONLY):\n```json\n{json.dumps(context_payload, indent=2)}\n```"
-        })
+        content_parts.append(f"User Question: \"{context.query}\"\n\nSenseible Grounded Hybrid Context (DATA ONLY):\n```json\n{json.dumps(context_payload, indent=2)}\n```")
+        full_prompt = "\n\n".join(content_parts)
 
-        completion = self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            response_format={"type": "json_object"},
+        config = types.GenerateContentConfig(
+            system_instruction=COPILOT_SYSTEM_PROMPT,
+            response_mime_type="application/json",
             temperature=0.0,
-            max_tokens=700
+            max_output_tokens=1000
         )
 
-        content = completion.choices[0].message.content
-        parsed = json.loads(content)
+        response = self.client.models.generate_content(
+            model=self.model,
+            contents=full_prompt,
+            config=config
+        )
+
+        content = (response.text or "").strip()
+        clean_json = re.sub(r'^```(?:json)?\s*', '', content, flags=re.IGNORECASE)
+        clean_json = re.sub(r'\s*```$', '', clean_json).strip()
+        parsed = json.loads(clean_json)
         answer = parsed.get("answer", "").strip()
 
         # Map cited source IDs back to actual validated SourceContext objects
@@ -185,6 +195,9 @@ class CopilotLLMService:
             context_available=True,
             summary=context.summary
         )
+
+    # Backward compatibility alias
+    _call_openai = _call_gemini
 
     def _generate_deterministic_response(
         self,

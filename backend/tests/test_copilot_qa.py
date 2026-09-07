@@ -220,13 +220,13 @@ def test_11_empty_context_handled_safely():
     assert "don't have enough" in res.answer.lower() or "no" in res.answer.lower()
 
 def test_12_llm_failure_fallback():
-    """12. Verify service falls back to deterministic grounding when OpenAI fails."""
+    """12. Verify service falls back to deterministic grounding when Gemini fails."""
     db: Session = next(get_db())
     ctx = copilot_context_service.build_context(db, "What is our electricity consumption?")
     
-    # Mock OpenAI client to raise an exception
+    # Mock Gemini client to raise an exception
     with patch.object(copilot_llm_service, "is_configured", return_value=True):
-        with patch.object(copilot_llm_service, "_call_openai", side_effect=Exception("OpenAI rate limit error")):
+        with patch.object(copilot_llm_service, "_call_gemini", side_effect=Exception("Gemini rate limit error")):
             res = copilot_llm_service.generate_response(ctx)
             assert res.context_available is True
             assert isinstance(res.answer, str)

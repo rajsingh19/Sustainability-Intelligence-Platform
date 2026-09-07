@@ -82,3 +82,8 @@ def isolate_document_one():
                     db.delete(o)
                 db.commit()
 
+        # Check if Document #1 was deleted by a test and restore if missing
+        doc1 = db.query(Document).filter(Document.id == 1).first()
+        if not doc1:
+            init_db()
+

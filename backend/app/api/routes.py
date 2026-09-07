@@ -197,6 +197,7 @@ def health_check(db: Session = Depends(get_db)):
         "database": db_status,
         "extraction_service": "available",
         "ocr_available": OCRService.is_ocr_available(),
+        "gemini_configured": llm_service.is_configured(),
         "openai_configured": llm_service.is_configured(),
         "llm_status": "Configured (Live)" if llm_service.is_configured() else "Deterministic Heuristic Engine Active"
     }

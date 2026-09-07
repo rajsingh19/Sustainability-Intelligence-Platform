@@ -47,7 +47,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="senseible-document-ai API",
-    description="Production-quality AI document extraction system for MSME sustainability and business documents (FastAPI + PyMuPDF + Tesseract OCR + OpenAI).",
+    description="Production-quality AI document extraction system for MSME sustainability and business documents (FastAPI + PyMuPDF + Tesseract OCR + Google Gemini).",
     version="1.0.0",
     lifespan=lifespan
 )

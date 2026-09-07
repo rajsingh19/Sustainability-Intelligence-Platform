@@ -51,7 +51,7 @@ class DocumentClassifier:
                 detected_signals=[]
             )
 
-        # Try LLM classification if OpenAI is configured
+        # Try LLM classification if Gemini is configured
         if self.llm_service and self.llm_service.is_configured():
             try:
                 llm_result = self._classify_with_llm(text)
@@ -64,7 +64,7 @@ class DocumentClassifier:
         return self._classify_with_heuristics(text, extraction_method)
 
     def _classify_with_llm(self, text: str) -> Optional[DocumentClassificationResult]:
-        """Perform classification using OpenAI LLM."""
+        """Perform classification using Google Gemini LLM."""
         prompt = f"""You are an enterprise document classifier. Analyze the following document text and classify it into EXACTLY ONE of the supported document types:
 - Electricity Bill
 - Fuel Receipt
@@ -87,9 +87,10 @@ Return a valid JSON object matching this schema:
   "detected_signals": ["<signal 1>", "<signal 2>"]
 }}"""
 
-        response_str = self.llm_service._call_openai(
+        response_str = self.llm_service._call_gemini(
             prompt,
-            system_prompt="You are a strict B2B document classification engine. Return JSON only."
+            system_prompt="You are a strict B2B document classification engine. Return JSON only.",
+            json_mode=True
         )
         if not response_str:
             return None

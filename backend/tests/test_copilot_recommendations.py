@@ -253,7 +253,7 @@ def test_19_llm_failure_fallback():
     ctx = copilot_context_service.build_context(db, "How can we reduce emissions?")
     recs = copilot_recommendation_service.generate_recommendations(db)
     with patch.object(copilot_llm_service, "is_configured", return_value=True):
-        with patch.object(copilot_llm_service, "_call_openai", side_effect=Exception("Timeout")):
+        with patch.object(copilot_llm_service, "_call_gemini", side_effect=Exception("Timeout")):
             res = copilot_llm_service.generate_response(ctx, recommendations=recs)
             assert res.context_available is True
             assert isinstance(res.answer, str)

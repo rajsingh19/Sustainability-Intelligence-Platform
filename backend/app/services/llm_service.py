@@ -4,13 +4,16 @@ import re
 import logging
 from datetime import datetime
 from typing import Dict, Any, Optional, List
-from openai import OpenAI
+from google import genai
+from google.genai import types
 
 from backend.app.schemas.extraction import SustainabilityDocumentExtraction
 from backend.app.utils.number_parser import parse_indian_number
 from backend.app.services.evidence_validator import EvidenceValidator
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
 
 SUSTAINABILITY_EXTRACTION_SYSTEM_PROMPT = """
 You are a precision AI Document Extraction and Sustainability Data Specialist for MSME enterprise documents.
@@ -45,8 +48,8 @@ Return ONLY a single valid JSON object strictly matching this schema:
   "confidence_score": 0.95,
   "executive_summary": "Factual 2-3 sentence summary strictly describing the extracted data.",
   "metadata": {
-    "provider": "openai",
-    "model": "gpt-4o-mini",
+    "provider": "gemini",
+    "model": "gemini-2.5-flash",
     "confidence": 0.95,
     "extraction_method": "pymupdf",
     "review_status": "COMPLETED",
@@ -193,60 +196,97 @@ ALL_EVALUATION_FIELDS: List[str] = [
 ]
 
 class LLMService:
-    def __init__(self):
-        self.api_key = os.getenv("OPENAI_API_KEY", "").strip()
-        self.model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-        self.client = OpenAI(api_key=self.api_key) if self.api_key else None
+    def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
+        self.api_key = (api_key or os.getenv("GEMINI_API_KEY", "")).strip()
+        self.model = model or os.getenv("GEMINI_MODEL", DEFAULT_GEMINI_MODEL)
+        self.client = None
+        if self.is_configured():
+            try:
+                self.client = genai.Client(api_key=self.api_key)
+            except Exception as e:
+                logger.warning(f"Failed to initialize Gemini client: {e}")
+                self.client = None
 
     def is_configured(self) -> bool:
-        """Check if live OpenAI credentials are set."""
-        return bool(self.api_key and not self.api_key.startswith("your-") and len(self.api_key) > 10)
+        """Check if live Gemini credentials are set."""
+        return bool(self.api_key and not self.api_key.startswith("your-") and len(self.api_key) > 5)
 
     def extract_sustainability_data(self, document_text: str, extraction_method: str = "pymupdf", routed_document_type: Optional[str] = None) -> Dict[str, Any]:
         """
-        Extract structured MSME sustainability data from document text using OpenAI LLM,
-        or the deterministic non-hallucinating heuristic fallback engine if OpenAI is offline.
+        Extract structured MSME sustainability data from document text using Google Gemini LLM,
+        or the deterministic non-hallucinating heuristic fallback engine if Gemini is offline.
         """
-        if self.is_configured():
+        if self.is_configured() and self.client:
             try:
-                logger.info(f"Sending document text ({len(document_text)} chars) to OpenAI ({self.model})...")
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=[
-                        {"role": "system", "content": SUSTAINABILITY_EXTRACTION_SYSTEM_PROMPT},
-                        {"role": "user", "content": f"Document Extraction Method: {extraction_method}\nDocument Type: {routed_document_type or 'Auto'}\n\nDocument Text:\n\n{document_text[:20000]}"}
-                    ],
-                    response_format={"type": "json_object"},
+                logger.info(f"Sending document text ({len(document_text)} chars) to Google Gemini ({self.model})...")
+                prompt_content = f"Document Extraction Method: {extraction_method}\nDocument Type: {routed_document_type or 'Auto'}\n\nDocument Text:\n\n{document_text[:20000]}"
+
+                config = types.GenerateContentConfig(
+                    system_instruction=SUSTAINABILITY_EXTRACTION_SYSTEM_PROMPT,
+                    response_mime_type="application/json",
+                    response_schema=SustainabilityDocumentExtraction,
                     temperature=0.0,
                 )
-                raw_response = response.choices[0].message.content.strip()
-                data = json.loads(raw_response)
-                
+
+                response = self.client.models.generate_content(
+                    model=self.model,
+                    contents=prompt_content,
+                    config=config,
+                )
+
+                raw_response = (response.text or "").strip()
+                clean_json = re.sub(r'^```(?:json)?\s*', '', raw_response, flags=re.IGNORECASE)
+                clean_json = re.sub(r'\s*```$', '', clean_json).strip()
+                data = json.loads(clean_json)
+
                 # Deterministic evidence validation
                 evidence_list = data.get("evidence", [])
                 validated_evidence = EvidenceValidator.validate_all_evidence(evidence_list, document_text, extraction_method=extraction_method)
                 data["evidence"] = validated_evidence
 
                 # Compute quality score & summary
-                data = self._enrich_quality_metrics(data, extraction_method=extraction_method, provider="openai")
-                logger.info("Successfully received and parsed structured JSON from OpenAI with verified evidence.")
+                data = self._enrich_quality_metrics(data, extraction_method=extraction_method, provider="gemini")
+                logger.info("Successfully received and parsed structured JSON from Gemini with verified evidence.")
                 return data
             except Exception as e:
-                logger.warning(f"OpenAI extraction failed ({e}), falling back to heuristic engine.")
+                logger.warning(f"Gemini extraction failed ({e}), falling back to heuristic engine.")
                 return self._heuristic_fallback_extraction(
                     document_text, 
                     extraction_method=extraction_method, 
-                    fallback_reason=f"OpenAI API Unavailable: {str(e)}",
+                    fallback_reason=f"Gemini API Unavailable: {str(e)}",
                     routed_document_type=routed_document_type
                 )
         else:
-            logger.info("OPENAI_API_KEY not configured. Running precision heuristic extraction engine.")
+            logger.info("GEMINI_API_KEY not configured. Running precision heuristic extraction engine.")
             return self._heuristic_fallback_extraction(
                 document_text, 
                 extraction_method=extraction_method, 
-                fallback_reason="Offline Evaluation Mode (OPENAI_API_KEY not set)",
+                fallback_reason="Offline Evaluation Mode (GEMINI_API_KEY not set)",
                 routed_document_type=routed_document_type
             )
+
+    def _call_gemini(self, prompt: str, system_prompt: Optional[str] = None, json_mode: bool = False) -> Optional[str]:
+        """Auxiliary call to Gemini for text generation tasks."""
+        if not self.is_configured() or not self.client:
+            return None
+        try:
+            config = types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                response_mime_type="application/json" if json_mode else "text/plain",
+                temperature=0.0,
+            )
+            response = self.client.models.generate_content(
+                model=self.model,
+                contents=prompt,
+                config=config,
+            )
+            return (response.text or "").strip()
+        except Exception as e:
+            logger.warning(f"Gemini call failed: {e}")
+            return None
+
+    # Backward compatibility alias
+    _call_openai = _call_gemini
 
     def _is_field_extracted(self, field_name: str, data: Dict[str, Any], evidence_map: Dict[str, Any]) -> bool:
         """Check if a given field was successfully extracted with a non-null value."""
@@ -401,7 +441,7 @@ class LLMService:
             data["metadata"] = {}
         
         data["metadata"]["provider"] = provider
-        data["metadata"]["model"] = self.model if provider == "openai" else "heuristic-engine-v4"
+        data["metadata"]["model"] = self.model if provider in ("gemini", "openai") else "heuristic-engine-v4"
         data["metadata"]["confidence"] = data["confidence_score"]
         data["metadata"]["extraction_method"] = extraction_method
         data["metadata"]["review_status"] = review_status
@@ -1177,5 +1217,8 @@ class LLMService:
 
         # Compute quality summary and score
         enriched = self._enrich_quality_metrics(extracted_dict, extraction_method=extraction_method, provider="heuristic_fallback")
+        if fallback_reason:
+            existing_notes = enriched["metadata"].get("processing_notes")
+            enriched["metadata"]["processing_notes"] = f"{fallback_reason}; {existing_notes}" if existing_notes else fallback_reason
         return enriched
 
