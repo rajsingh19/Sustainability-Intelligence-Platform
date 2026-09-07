@@ -1199,26 +1199,26 @@ export default function DocumentDetail({
           </div>
 
           <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-            <table className="w-full text-left text-xs min-w-[540px]">
+            <table className="w-full text-left text-xs min-w-[800px]">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-semibold">
-                  <th className="py-2.5 px-3">Field</th>
-                  <th className="py-2.5 px-3">Extracted Value</th>
-                  <th className="py-2.5 px-3">Confidence</th>
-                  <th className="py-2.5 px-3">Document Snippet / Source</th>
+                  <th className="py-2.5 px-3.5 min-w-[200px]">Field</th>
+                  <th className="py-2.5 px-3.5 min-w-[150px]">Extracted Value</th>
+                  <th className="py-2.5 px-3.5 min-w-[120px]">Confidence</th>
+                  <th className="py-2.5 px-3.5 min-w-[420px]">Document Snippet / Source</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-800">
                 {evidenceToShow.map((ev, idx) => (
                   <tr key={idx} className="hover:bg-slate-50/60">
-                    <td className="py-2.5 px-3 font-semibold text-slate-900">{ev.field || 'Evidence'}</td>
-                    <td className="py-2.5 px-3 font-medium">{String(ev.value || '—')} {ev.unit || ''}</td>
-                    <td className="py-2.5 px-3">
+                    <td className="py-2.5 px-3.5 font-semibold text-slate-900 whitespace-normal break-words min-w-[200px]">{ev.field || 'Evidence'}</td>
+                    <td className="py-2.5 px-3.5 font-medium whitespace-normal break-words min-w-[150px]">{String(ev.value || '—')} {ev.unit || ''}</td>
+                    <td className="py-2.5 px-3.5 whitespace-nowrap min-w-[120px]">
                       <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
                         {ev.confidence_level || 'HIGH'} ({Math.round((ev.confidence || 0.95) * 100)}%)
                       </span>
                     </td>
-                    <td className="py-2.5 px-3 text-slate-500 italic max-w-xs truncate" title={ev.source_text || ev.snippet || 'Extracted from Page 1 table'}>
+                    <td className="py-2.5 px-3.5 text-slate-600 italic whitespace-normal break-words leading-relaxed min-w-[420px]">
                       "{ev.source_text || ev.snippet || 'Extracted from Page 1 table'}"
                     </td>
                   </tr>
@@ -1261,14 +1261,14 @@ export default function DocumentDetail({
           </div>
 
           <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-            <table className="w-full text-left text-xs min-w-[580px]">
+            <table className="w-full text-left text-xs min-w-[760px]">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-semibold">
-                  <th className="py-2.5 px-3">Field Name</th>
-                  <th className="py-2.5 px-3">Extracted Value</th>
-                  <th className="py-2.5 px-3">Category</th>
-                  <th className="py-2.5 px-3">Status</th>
-                  <th className="py-2.5 px-3 text-right">Actions</th>
+                  <th className="py-2.5 px-3.5 min-w-[220px]">Field Name</th>
+                  <th className="py-2.5 px-3.5 min-w-[180px]">Extracted Value</th>
+                  <th className="py-2.5 px-3.5 min-w-[120px]">Category</th>
+                  <th className="py-2.5 px-3.5 min-w-[150px]">Status</th>
+                  <th className="py-2.5 px-3.5 min-w-[120px] text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-800">
@@ -1278,8 +1278,8 @@ export default function DocumentDetail({
 
                   return (
                     <tr key={row.fieldName} className="hover:bg-slate-50/60">
-                      <td className="py-3 px-3 font-semibold text-slate-900">{row.label}</td>
-                      <td className="py-3 px-3">
+                      <td className="py-3 px-3.5 font-semibold text-slate-900 whitespace-normal break-words min-w-[220px]">{row.label}</td>
+                      <td className="py-3 px-3.5 whitespace-normal break-words min-w-[180px]">
                         {isEditing ? (
                           <div className="flex items-center space-x-1.5">
                             <input
@@ -1310,12 +1310,12 @@ export default function DocumentDetail({
                           </span>
                         )}
                       </td>
-                      <td className="py-3 px-3">
+                      <td className="py-3 px-3.5 whitespace-nowrap min-w-[120px]">
                         <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-medium">
                           {row.category}
                         </span>
                       </td>
-                      <td className="py-3 px-3">
+                      <td className="py-3 px-3.5 whitespace-nowrap min-w-[150px]">
                         {hasValue ? (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
                             Extracted
@@ -1326,7 +1326,7 @@ export default function DocumentDetail({
                           </span>
                         )}
                       </td>
-                      <td className="py-3 px-3 text-right">
+                      <td className="py-3 px-3.5 text-right whitespace-nowrap min-w-[120px]">
                         <div className="flex items-center justify-end space-x-1.5">
                           {!isEditing && (
                             <button

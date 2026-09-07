@@ -211,28 +211,28 @@ export default function EvidenceReport({ documentId, onBack, onNavigateToDocumen
               Key Sustainability Metrics
             </h2>
             {metrics && metrics.length > 0 ? (
-              <div className="border border-slate-200 rounded-lg overflow-hidden">
-                <table className="w-full text-left text-xs">
+              <div className="w-full max-w-full overflow-x-auto rounded-lg border border-slate-200">
+                <table className="w-full text-left text-xs min-w-[720px]">
                   <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold">
                     <tr>
-                      <th className="py-2.5 px-4">Metric</th>
-                      <th className="py-2.5 px-4 text-right">Value</th>
-                      <th className="py-2.5 px-4">Unit</th>
-                      <th className="py-2.5 px-4">Reporting Period</th>
-                      <th className="py-2.5 px-4">Status</th>
+                      <th className="py-2.5 px-4 min-w-[220px]">Metric</th>
+                      <th className="py-2.5 px-4 text-right min-w-[150px]">Value</th>
+                      <th className="py-2.5 px-4 min-w-[100px]">Unit</th>
+                      <th className="py-2.5 px-4 min-w-[160px]">Reporting Period</th>
+                      <th className="py-2.5 px-4 min-w-[120px]">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-slate-700">
                     {metrics.map((m, idx) => (
                       <tr key={idx} className="hover:bg-slate-50/50">
-                        <td className="py-2.5 px-4 font-semibold text-slate-900">{m.metric_name}</td>
-                        <td className="py-2.5 px-4 text-right font-mono font-bold text-slate-800">
+                        <td className="py-2.5 px-4 font-semibold text-slate-900 whitespace-normal break-words min-w-[220px]">{m.metric_name}</td>
+                        <td className="py-2.5 px-4 text-right font-mono font-bold text-slate-800 whitespace-nowrap min-w-[150px]">
                           {typeof m.value === 'number' ? m.value.toLocaleString(undefined, { maximumFractionDigits: 2 }) : m.value}
                         </td>
-                        <td className="py-2.5 px-4 font-medium text-slate-500">{m.unit}</td>
-                        <td className="py-2.5 px-4 text-slate-500">{m.reporting_period || '—'}</td>
-                        <td className="py-2.5 px-4">
-                          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600">
+                        <td className="py-2.5 px-4 font-medium text-slate-500 whitespace-normal min-w-[100px]">{m.unit}</td>
+                        <td className="py-2.5 px-4 text-slate-500 whitespace-normal min-w-[160px]">{m.reporting_period || '—'}</td>
+                        <td className="py-2.5 px-4 min-w-[120px]">
+                          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 whitespace-nowrap">
                             {m.verification_status || 'EXTRACTED'}
                           </span>
                         </td>
@@ -252,45 +252,45 @@ export default function EvidenceReport({ documentId, onBack, onNavigateToDocumen
               Greenhouse Gas Emissions Summary
             </h2>
             {emissions && emissions.emissions_available ? (
-              <div className="border border-slate-200 rounded-lg overflow-hidden">
-                <table className="w-full text-left text-xs">
+              <div className="w-full max-w-full overflow-x-auto rounded-lg border border-slate-200">
+                <table className="w-full text-left text-xs min-w-[650px]">
                   <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold">
                     <tr>
-                      <th className="py-2.5 px-4">Scope Category</th>
-                      <th className="py-2.5 px-4 text-right">Value</th>
-                      <th className="py-2.5 px-4">Unit</th>
-                      <th className="py-2.5 px-4">Verification / Lineage</th>
+                      <th className="py-2.5 px-4 min-w-[250px]">Scope Category</th>
+                      <th className="py-2.5 px-4 text-right min-w-[130px]">Value</th>
+                      <th className="py-2.5 px-4 min-w-[90px]">Unit</th>
+                      <th className="py-2.5 px-4 min-w-[180px]">Verification / Lineage</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-slate-700">
                     {emissions.scope_1 != null && (
                       <tr className="hover:bg-slate-50/50">
-                        <td className="py-2.5 px-4 font-semibold text-slate-900">Scope 1 (Direct Fuel Combustion)</td>
-                        <td className="py-2.5 px-4 text-right font-mono font-bold text-slate-800">
+                        <td className="py-2.5 px-4 font-semibold text-slate-900 whitespace-normal break-words min-w-[250px]">Scope 1 (Direct Fuel Combustion)</td>
+                        <td className="py-2.5 px-4 text-right font-mono font-bold text-slate-800 whitespace-nowrap min-w-[130px]">
                           {emissions.scope_1.toFixed(2)}
                         </td>
-                        <td className="py-2.5 px-4 text-slate-500">{emissions.scope_1_unit}</td>
-                        <td className="py-2.5 px-4 text-slate-500 text-[11px] font-mono">{emissions.scope_1_source || 'AI Extracted'}</td>
+                        <td className="py-2.5 px-4 text-slate-500 whitespace-nowrap min-w-[90px]">{emissions.scope_1_unit}</td>
+                        <td className="py-2.5 px-4 text-slate-500 text-[11px] font-mono whitespace-normal min-w-[180px]">{emissions.scope_1_source || 'AI Extracted'}</td>
                       </tr>
                     )}
                     {emissions.scope_2 != null && (
                       <tr className="hover:bg-slate-50/50">
-                        <td className="py-2.5 px-4 font-semibold text-slate-900">Scope 2 (Purchased Grid Electricity)</td>
-                        <td className="py-2.5 px-4 text-right font-mono font-bold text-slate-800">
+                        <td className="py-2.5 px-4 font-semibold text-slate-900 whitespace-normal break-words min-w-[250px]">Scope 2 (Purchased Grid Electricity)</td>
+                        <td className="py-2.5 px-4 text-right font-mono font-bold text-slate-800 whitespace-nowrap min-w-[130px]">
                           {emissions.scope_2.toFixed(2)}
                         </td>
-                        <td className="py-2.5 px-4 text-slate-500">{emissions.scope_2_unit}</td>
-                        <td className="py-2.5 px-4 text-slate-500 text-[11px] font-mono">{emissions.scope_2_source || 'AI Extracted'}</td>
+                        <td className="py-2.5 px-4 text-slate-500 whitespace-nowrap min-w-[90px]">{emissions.scope_2_unit}</td>
+                        <td className="py-2.5 px-4 text-slate-500 text-[11px] font-mono whitespace-normal min-w-[180px]">{emissions.scope_2_source || 'AI Extracted'}</td>
                       </tr>
                     )}
                     {emissions.total_ghg != null && (
                       <tr className="bg-slate-50/70 font-bold">
-                        <td className="py-2.5 px-4 text-slate-900">Total Recorded GHG Footprint</td>
-                        <td className="py-2.5 px-4 text-right font-mono text-emerald-800">
+                        <td className="py-2.5 px-4 text-slate-900 whitespace-normal break-words min-w-[250px]">Total Recorded GHG Footprint</td>
+                        <td className="py-2.5 px-4 text-right font-mono text-emerald-800 whitespace-nowrap min-w-[130px]">
                           {emissions.total_ghg.toFixed(2)}
                         </td>
-                        <td className="py-2.5 px-4 text-slate-600">{emissions.total_ghg_unit}</td>
-                        <td className="py-2.5 px-4 text-slate-500 text-[11px] font-mono">{emissions.total_ghg_source || 'Aggregated Total'}</td>
+                        <td className="py-2.5 px-4 text-slate-600 whitespace-nowrap min-w-[90px]">{emissions.total_ghg_unit}</td>
+                        <td className="py-2.5 px-4 text-slate-500 text-[11px] font-mono whitespace-normal min-w-[180px]">{emissions.total_ghg_source || 'Aggregated Total'}</td>
                       </tr>
                     )}
                   </tbody>
@@ -315,25 +315,25 @@ export default function EvidenceReport({ documentId, onBack, onNavigateToDocumen
               Evidence & Lineage Traceability
             </h2>
             {evidence && evidence.length > 0 ? (
-              <div className="border border-slate-200 rounded-lg overflow-hidden">
-                <table className="w-full text-left text-xs">
+              <div className="w-full max-w-full overflow-x-auto rounded-lg border border-slate-200">
+                <table className="w-full text-left text-xs min-w-[800px]">
                   <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold">
                     <tr>
-                      <th className="py-2.5 px-4">Metric</th>
-                      <th className="py-2.5 px-4 text-right">Extracted Value</th>
-                      <th className="py-2.5 px-4">Unit</th>
-                      <th className="py-2.5 px-4">Source Document Excerpt</th>
+                      <th className="py-2.5 px-4 min-w-[200px]">Metric</th>
+                      <th className="py-2.5 px-4 text-right min-w-[140px]">Extracted Value</th>
+                      <th className="py-2.5 px-4 min-w-[90px]">Unit</th>
+                      <th className="py-2.5 px-4 min-w-[420px]">Source Document Excerpt</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-slate-700">
                     {evidence.map((ev, idx) => (
                       <tr key={idx} className="hover:bg-slate-50/50">
-                        <td className="py-2.5 px-4 font-semibold text-slate-900">{ev.metric_name}</td>
-                        <td className="py-2.5 px-4 text-right font-mono text-slate-800">
+                        <td className="py-2.5 px-4 font-semibold text-slate-900 whitespace-normal break-words min-w-[200px]">{ev.metric_name}</td>
+                        <td className="py-2.5 px-4 text-right font-mono text-slate-800 whitespace-nowrap min-w-[140px]">
                           {typeof ev.value === 'number' ? ev.value.toLocaleString(undefined, { maximumFractionDigits: 2 }) : (ev.value || '—')}
                         </td>
-                        <td className="py-2.5 px-4 font-medium text-slate-500">{ev.unit || '—'}</td>
-                        <td className="py-2.5 px-4 font-mono text-[11px] text-slate-600 bg-slate-50/30">
+                        <td className="py-2.5 px-4 font-medium text-slate-500 whitespace-nowrap min-w-[90px]">{ev.unit || '—'}</td>
+                        <td className="py-2.5 px-4 font-mono text-[11px] text-slate-600 bg-slate-50/30 whitespace-normal break-words leading-relaxed min-w-[420px]">
                           {ev.source_text || 'Source text unavailable.'}
                         </td>
                       </tr>
@@ -387,21 +387,21 @@ export default function EvidenceReport({ documentId, onBack, onNavigateToDocumen
               Data Not Reported
             </h2>
             {missing_data && missing_data.length > 0 ? (
-              <div className="border border-slate-200 rounded-lg overflow-hidden">
-                <table className="w-full text-left text-xs">
+              <div className="w-full max-w-full overflow-x-auto rounded-lg border border-slate-200">
+                <table className="w-full text-left text-xs min-w-[600px]">
                   <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold">
                     <tr>
-                      <th className="py-2.5 px-4">Metric / Dimension</th>
-                      <th className="py-2.5 px-4">Status</th>
-                      <th className="py-2.5 px-4">Reporting Note</th>
+                      <th className="py-2.5 px-4 min-w-[200px]">Metric / Dimension</th>
+                      <th className="py-2.5 px-4 min-w-[130px]">Status</th>
+                      <th className="py-2.5 px-4 min-w-[240px]">Reporting Note</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-slate-700">
                     {missing_data.map((item, idx) => (
                       <tr key={idx} className="hover:bg-slate-50/50">
-                        <td className="py-2.5 px-4 font-semibold text-slate-800">{item.display_name}</td>
-                        <td className="py-2.5 px-4">
-                          <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${
+                        <td className="py-2.5 px-4 font-semibold text-slate-800 whitespace-normal break-words min-w-[200px]">{item.display_name}</td>
+                        <td className="py-2.5 px-4 min-w-[130px]">
+                          <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold whitespace-nowrap ${
                             item.is_not_applicable
                               ? 'bg-slate-100 text-slate-500'
                               : 'bg-amber-50 text-amber-700 border border-amber-200'
@@ -409,7 +409,7 @@ export default function EvidenceReport({ documentId, onBack, onNavigateToDocumen
                             {item.is_not_applicable ? 'Not Applicable' : 'Not Reported'}
                           </span>
                         </td>
-                        <td className="py-2.5 px-4 text-slate-500">{item.reason}</td>
+                        <td className="py-2.5 px-4 text-slate-500 whitespace-normal min-w-[240px]">{item.reason}</td>
                       </tr>
                     ))}
                   </tbody>

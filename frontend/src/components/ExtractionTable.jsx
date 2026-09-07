@@ -49,16 +49,16 @@ export default function ExtractionTable({
       </div>
 
       {/* Table Data */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs border-collapse">
+      <div className="w-full max-w-full overflow-x-auto">
+        <table className="w-full text-left text-xs border-collapse min-w-[700px]">
           <thead>
             <tr className="bg-slate-50/50 border-b border-slate-200 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              <th className="py-3 px-4 w-5/12">FIELD</th>
-              <th className="py-3 px-3">VALUE</th>
-              <th className="py-3 px-3">UNIT</th>
-              <th className="py-3 px-3">CONFIDENCE</th>
-              <th className="py-3 px-3">STATUS</th>
-              <th className="py-3 px-4 text-right">ACTION</th>
+              <th className="py-3 px-4 min-w-[220px]">FIELD</th>
+              <th className="py-3 px-3 min-w-[140px]">VALUE</th>
+              <th className="py-3 px-3 min-w-[80px]">UNIT</th>
+              <th className="py-3 px-3 min-w-[110px]">CONFIDENCE</th>
+              <th className="py-3 px-3 min-w-[130px]">STATUS</th>
+              <th className="py-3 px-4 min-w-[110px] text-right">ACTION</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -76,7 +76,7 @@ export default function ExtractionTable({
                 <tr key={fieldName} className="hover:bg-slate-50/80 transition-colors">
                   
                   {/* Field Name */}
-                  <td className="py-3.5 px-4 font-semibold text-slate-900">
+                  <td className="py-3.5 px-4 font-semibold text-slate-900 whitespace-normal break-words min-w-[220px]">
                     {label}
                   </td>
 

@@ -203,17 +203,17 @@ export default function DocumentTable({
     <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
       
       {/* Table Content */}
-      <div className="overflow-x-auto min-h-[160px]">
-        <table className="w-full text-left border-collapse">
+      <div className="w-full max-w-full overflow-x-auto min-h-[160px]">
+        <table className="w-full text-left border-collapse min-w-[760px]">
           <thead>
             <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-              <th className="py-3 px-4">Document</th>
-              <th className="py-3 px-3">Type</th>
-              <th className="py-3 px-3">Reporting Period</th>
-              <th className="py-3 px-3">Status</th>
-              <th className="py-3 px-3">Quality</th>
-              <th className="py-3 px-3">Uploaded</th>
-              <th className="py-3 px-4 text-right">Action</th>
+              <th className="py-3 px-4 min-w-[240px]">Document</th>
+              <th className="py-3 px-3 min-w-[120px]">Type</th>
+              <th className="py-3 px-3 min-w-[140px]">Reporting Period</th>
+              <th className="py-3 px-3 min-w-[120px]">Status</th>
+              <th className="py-3 px-3 min-w-[110px]">Quality</th>
+              <th className="py-3 px-3 min-w-[110px]">Uploaded</th>
+              <th className="py-3 px-4 text-right min-w-[110px]">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 text-xs">
