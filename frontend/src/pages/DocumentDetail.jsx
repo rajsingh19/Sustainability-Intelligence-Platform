@@ -421,12 +421,12 @@ export default function DocumentDetail({
     <div className="w-full max-w-7xl mx-auto space-y-6 pb-20 animate-fade-in">
       
       {/* 1. DOCUMENT HEADER */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
-        {/* Back Link */}
-        <div className="flex items-center justify-between">
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-xs space-y-4">
+        {/* Back Link & Verification Status */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <button
             onClick={onBack}
-            className="inline-flex items-center space-x-1.5 text-xs font-semibold text-slate-500 hover:text-[#0F6B56] transition-colors"
+            className="inline-flex items-center space-x-1.5 text-xs font-semibold text-slate-500 hover:text-[#0F6B56] transition-colors py-1"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Back to Documents</span>
@@ -454,14 +454,14 @@ export default function DocumentDetail({
 
         {/* Title & Metadata Line */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-1">
-          <div className="space-y-1">
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+          <div className="space-y-1.5 min-w-0 max-w-full">
+            <h1 className="text-lg sm:text-2xl font-bold text-slate-900 tracking-tight break-words">
               {doc.document_type || 'Electricity Bill'} &mdash; {doc.company_name || doc.original_filename || 'TARA ENGINEERING WORKS'}
             </h1>
-            <p className="text-xs text-slate-500 flex items-center space-x-2">
-              <span className="font-mono text-slate-600">{doc.original_filename || doc.filename || 'msme_test_invoice.pdf'}</span>
+            <p className="text-xs text-slate-500 flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="font-mono text-slate-600 truncate max-w-full">{doc.original_filename || doc.filename || 'msme_test_invoice.pdf'}</span>
               <span>&bull;</span>
-              <span>Extracted via PyMuPDF Engine</span>
+              <span>PyMuPDF Engine</span>
               {doc.created_at && (
                 <>
                   <span>&bull;</span>
@@ -471,55 +471,61 @@ export default function DocumentDetail({
             </p>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
-            {!isVerified && (
+          {/* Action Buttons Responsive Group */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full md:w-auto shrink-0 pt-1 md:pt-0">
+            {/* Primary actions */}
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              {!isVerified && (
+                <button
+                  onClick={handleVerifyDocument}
+                  disabled={isSubmitting}
+                  className="flex-1 sm:flex-none px-3.5 py-2 bg-[#0F6B56] hover:bg-[#0c5947] text-white rounded-xl text-xs font-semibold transition-all shadow-xs flex items-center justify-center space-x-1.5 disabled:opacity-50 min-h-[38px]"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Mark as Verified</span>
+                </button>
+              )}
+
+              {onViewReport && (
+                <button
+                  onClick={() => onViewReport(doc.id)}
+                  className="flex-1 sm:flex-none px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-colors flex items-center justify-center space-x-1.5 shadow-2xs min-h-[38px]"
+                  title="View audit-ready evidence report"
+                >
+                  <FileText className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Generate Report</span>
+                </button>
+              )}
+            </div>
+
+            {/* Secondary actions */}
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
               <button
-                onClick={handleVerifyDocument}
-                disabled={isSubmitting}
-                className="px-3 py-1.5 bg-[#0F6B56] hover:bg-[#0c5947] text-white rounded-lg text-xs font-semibold transition-all shadow-xs flex items-center space-x-1.5 disabled:opacity-50"
+                onClick={handleExportJson}
+                className="flex-1 sm:flex-none px-3 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-colors flex items-center justify-center space-x-1.5 shadow-2xs min-h-[38px]"
+                title="Export structured JSON"
               >
-                <Check className="w-3.5 h-3.5" />
-                <span>Mark as Verified</span>
+                <Download className="w-3.5 h-3.5 text-slate-400" />
+                <span>Export JSON</span>
               </button>
-            )}
 
-            {onViewReport && (
               <button
-                onClick={() => onViewReport(doc.id)}
-                className="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition-colors flex items-center space-x-1.5 shadow-2xs"
-                title="View audit-ready evidence report"
+                onClick={() => setShowAuditModal(true)}
+                className="flex-1 sm:flex-none px-3 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-colors flex items-center justify-center space-x-1.5 shadow-2xs min-h-[38px]"
+                title="View verification audit log"
               >
-                <FileText className="w-3.5 h-3.5 text-slate-400" />
-                <span>Generate Report</span>
+                <History className="w-3.5 h-3.5 text-slate-400" />
+                <span>Audit Trail</span>
               </button>
-            )}
 
-            <button
-              onClick={handleExportJson}
-              className="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition-colors flex items-center space-x-1.5 shadow-2xs"
-              title="Export structured JSON"
-            >
-              <Download className="w-3.5 h-3.5 text-slate-400" />
-              <span>Export JSON</span>
-            </button>
-
-            <button
-              onClick={() => setShowAuditModal(true)}
-              className="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition-colors flex items-center space-x-1.5 shadow-2xs"
-              title="View verification audit log"
-            >
-              <History className="w-3.5 h-3.5 text-slate-400" />
-              <span>Audit Trail</span>
-            </button>
-
-            <button
-              onClick={handleDelete}
-              className="p-1.5 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 text-slate-400 hover:text-rose-600 rounded-lg text-xs transition-colors shadow-2xs"
-              title="Delete document"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
+              <button
+                onClick={handleDelete}
+                className="p-2 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 text-slate-400 hover:text-rose-600 rounded-xl text-xs transition-colors shadow-2xs min-h-[38px] min-w-[38px] flex items-center justify-center shrink-0"
+                title="Delete document"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -616,8 +622,8 @@ export default function DocumentDetail({
         </div>
       </div>
 
-      {/* 3. STICKY SUB-NAVIGATION BAR (Replaces bulky left sidebar) */}
-      <div className="sticky top-14 z-20 bg-white/95 backdrop-blur-xs border border-slate-200 rounded-xl px-2 py-1 shadow-xs flex items-center space-x-1 overflow-x-auto no-scrollbar">
+      {/* 3. STICKY SUB-NAVIGATION BAR (Horizontal scroll inside bar only) */}
+      <div className="sticky top-14 sm:top-16 z-20 bg-white/95 backdrop-blur-xs border border-slate-200 rounded-xl px-2 py-1.5 shadow-xs flex items-center space-x-1 overflow-x-auto overflow-y-hidden whitespace-nowrap no-scrollbar max-w-full">
         {[
           { key: 'overview', label: 'Overview', icon: FileText },
           { key: 'sustainability', label: 'Sustainability', icon: Zap },
@@ -632,7 +638,7 @@ export default function DocumentDetail({
             <button
               key={item.key}
               onClick={() => scrollToSection(item.key)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap flex items-center space-x-1.5 ${
+              className={`px-3 py-1.5 sm:py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap shrink-0 flex items-center space-x-1.5 ${
                 isActive
                   ? 'bg-[#EAF7F2] text-[#0F6B56] shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -647,8 +653,8 @@ export default function DocumentDetail({
 
       {/* 4. SECTION 1 — DOCUMENT OVERVIEW */}
       <section ref={sectionRefs.overview} className="space-y-4">
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-xs space-y-4">
+          <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 border-b border-slate-100 pb-3">
             <div>
               <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
                 Document Overview
@@ -659,7 +665,7 @@ export default function DocumentDetail({
             </div>
             <button
               onClick={() => setShowAllOverviewInfo(!showAllOverviewInfo)}
-              className="text-xs text-[#0F6B56] hover:underline font-semibold flex items-center space-x-1"
+              className="text-xs text-[#0F6B56] hover:underline font-semibold flex items-center space-x-1 self-start xs:self-auto"
             >
               <span>{showAllOverviewInfo ? 'Hide details' : 'View all metadata'}</span>
               {showAllOverviewInfo ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -667,31 +673,31 @@ export default function DocumentDetail({
           </div>
 
           {/* Compact 4-Column Metadata Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
-            <div className="p-3 bg-slate-50/70 rounded-xl border border-slate-100">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4 text-xs">
+            <div className="p-3 bg-slate-50/70 rounded-xl border border-slate-100 min-w-0">
               <span className="text-slate-400 font-medium block text-[11px] mb-0.5">Company Name</span>
-              <span className="font-semibold text-slate-900 block truncate">
+              <span className="font-semibold text-slate-900 block truncate" title={company.name || doc.company_name || 'TARA ENGINEERING WORKS'}>
                 {company.name || doc.company_name || 'TARA ENGINEERING WORKS'}
               </span>
             </div>
 
-            <div className="p-3 bg-slate-50/70 rounded-xl border border-slate-100">
+            <div className="p-3 bg-slate-50/70 rounded-xl border border-slate-100 min-w-0">
               <span className="text-slate-400 font-medium block text-[11px] mb-0.5">Document Type</span>
-              <span className="font-semibold text-slate-900 block">
+              <span className="font-semibold text-slate-900 block break-words">
                 {doc.document_type || 'Electricity Bill'}
               </span>
             </div>
 
-            <div className="p-3 bg-slate-50/70 rounded-xl border border-slate-100">
+            <div className="p-3 bg-slate-50/70 rounded-xl border border-slate-100 min-w-0">
               <span className="text-slate-400 font-medium block text-[11px] mb-0.5">Billing Period</span>
-              <span className="font-semibold text-slate-900 block">
+              <span className="font-semibold text-slate-900 block break-words">
                 {period.billing_month || doc.reporting_period || 'October 2024'}
               </span>
             </div>
 
-            <div className="p-3 bg-slate-50/70 rounded-xl border border-slate-100">
+            <div className="p-3 bg-slate-50/70 rounded-xl border border-slate-100 min-w-0">
               <span className="text-slate-400 font-medium block text-[11px] mb-0.5">Registration ID</span>
-              <span className="font-semibold text-slate-900 font-mono block truncate">
+              <span className="font-semibold text-slate-900 font-mono block truncate" title={company.registration_id || '09ABCDE1234F1Z5'}>
                 {company.registration_id || '09ABCDE1234F1Z5'}
               </span>
             </div>
@@ -699,18 +705,18 @@ export default function DocumentDetail({
 
           {/* Expandable Extended Metadata */}
           {showAllOverviewInfo && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-100 text-xs animate-dropdown">
-              <div className="p-3 bg-slate-50/70 rounded-xl border border-slate-100">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4 pt-2 border-t border-slate-100 text-xs animate-dropdown">
+              <div className="p-3 bg-slate-50/70 rounded-xl border border-slate-100 min-w-0">
                 <span className="text-slate-400 font-medium block text-[11px] mb-0.5">Facility Address</span>
-                <span className="text-slate-800">{company.address || 'Plot 42, Industrial Area, Sector 8'}</span>
+                <span className="text-slate-800 break-words">{company.address || 'Plot 42, Industrial Area, Sector 8'}</span>
               </div>
-              <div className="p-3 bg-slate-50/70 rounded-xl border border-slate-100">
+              <div className="p-3 bg-slate-50/70 rounded-xl border border-slate-100 min-w-0">
                 <span className="text-slate-400 font-medium block text-[11px] mb-0.5">Industry Sector</span>
-                <span className="text-slate-800">{company.industry_sector || 'Precision Metal Forging & Fabrication'}</span>
+                <span className="text-slate-800 break-words">{company.industry_sector || 'Precision Metal Forging & Fabrication'}</span>
               </div>
-              <div className="p-3 bg-slate-50/70 rounded-xl border border-slate-100">
+              <div className="p-3 bg-slate-50/70 rounded-xl border border-slate-100 min-w-0">
                 <span className="text-slate-400 font-medium block text-[11px] mb-0.5">Audit Standard & ISO</span>
-                <span className="text-slate-800">{compliance.audit_standard || 'ISO 50001 / CEA Tariff Regulation'}</span>
+                <span className="text-slate-800 break-words">{compliance.audit_standard || 'ISO 50001 / CEA Tariff Regulation'}</span>
               </div>
             </div>
           )}
@@ -719,7 +725,7 @@ export default function DocumentDetail({
 
       {/* 5. SECTION 2 — SUSTAINABILITY SUMMARY */}
       <section ref={sectionRefs.sustainability} className="space-y-4">
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-xs space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div>
               <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
@@ -732,7 +738,7 @@ export default function DocumentDetail({
           </div>
 
           {/* 4 Clean Category Summary Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4 text-xs">
             {/* Energy */}
             <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/40 space-y-3">
               <div className="flex items-center justify-between">
@@ -742,22 +748,22 @@ export default function DocumentDetail({
                 </span>
                 <span className="text-[10px] text-slate-400 font-mono">Active Power</span>
               </div>
-              <div className="space-y-1.5">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Electricity:</span>
-                  <span className="font-semibold text-slate-900">{energy.electricity_kwh ? `${energy.electricity_kwh.toLocaleString()} kWh` : '48,750 kWh'}</span>
+              <div className="space-y-2">
+                <div className="flex justify-between items-start gap-2">
+                  <span className="text-slate-500 shrink-0">Electricity:</span>
+                  <span className="font-semibold text-slate-900 text-right break-words">{energy.electricity_kwh ? `${energy.electricity_kwh.toLocaleString()} kWh` : '48,750 kWh'}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Solar Captive:</span>
-                  <span className="font-semibold text-slate-900">{energy.renewable_energy_kwh ? `${energy.renewable_energy_kwh.toLocaleString()} kWh` : '3,850 kWh'}</span>
+                <div className="flex justify-between items-start gap-2">
+                  <span className="text-slate-500 shrink-0">Solar Captive:</span>
+                  <span className="font-semibold text-slate-900 text-right break-words">{energy.renewable_energy_kwh ? `${energy.renewable_energy_kwh.toLocaleString()} kWh` : '3,850 kWh'}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Peak Demand:</span>
-                  <span className="font-semibold text-slate-900">{energy.peak_demand_kva_kw ? `${energy.peak_demand_kva_kw} kVA` : '128.5 kVA'}</span>
+                <div className="flex justify-between items-start gap-2">
+                  <span className="text-slate-500 shrink-0">Peak Demand:</span>
+                  <span className="font-semibold text-slate-900 text-right break-words">{energy.peak_demand_kva_kw ? `${energy.peak_demand_kva_kw} kVA` : '128.5 kVA'}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Fuel (Diesel):</span>
-                  <span className="font-semibold text-slate-900">{energy.fuel_diesel_liters ? `${energy.fuel_diesel_liters} L` : '420 L'}</span>
+                <div className="flex justify-between items-start gap-2">
+                  <span className="text-slate-500 shrink-0">Fuel (Diesel):</span>
+                  <span className="font-semibold text-slate-900 text-right break-words">{energy.fuel_diesel_liters ? `${energy.fuel_diesel_liters} L` : '420 L'}</span>
                 </div>
               </div>
             </div>
@@ -771,22 +777,22 @@ export default function DocumentDetail({
                 </span>
                 <span className="text-[10px] text-slate-400 font-mono">tCO₂e</span>
               </div>
-              <div className="space-y-1.5">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Scope 1 (Direct):</span>
-                  <span className="font-semibold text-slate-900">{scope1T} tCO₂e</span>
+              <div className="space-y-2">
+                <div className="flex justify-between items-start gap-2">
+                  <span className="text-slate-500 shrink-0">Scope 1 (Direct):</span>
+                  <span className="font-semibold text-slate-900 text-right break-words">{scope1T} tCO₂e</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Scope 2 (Grid):</span>
-                  <span className="font-semibold text-slate-900">{scope2T} tCO₂e</span>
+                <div className="flex justify-between items-start gap-2">
+                  <span className="text-slate-500 shrink-0">Scope 2 (Grid):</span>
+                  <span className="font-semibold text-slate-900 text-right break-words">{scope2T} tCO₂e</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Scope 3:</span>
-                  <span className="text-slate-400">—</span>
+                <div className="flex justify-between items-start gap-2">
+                  <span className="text-slate-500 shrink-0">Scope 3:</span>
+                  <span className="text-slate-400 text-right">—</span>
                 </div>
-                <div className="flex justify-between pt-1 border-t border-slate-200/60 font-bold">
-                  <span className="text-slate-700">Total Footprint:</span>
-                  <span className="text-[#0F6B56]">{totalCarbonT} tCO₂e</span>
+                <div className="flex justify-between items-start gap-2 pt-1.5 border-t border-slate-200/60 font-bold">
+                  <span className="text-slate-700 shrink-0">Total Footprint:</span>
+                  <span className="text-[#0F6B56] text-right break-words">{totalCarbonT} tCO₂e</span>
                 </div>
               </div>
             </div>
@@ -800,22 +806,22 @@ export default function DocumentDetail({
                 </span>
                 <span className="text-[10px] text-slate-400">Resource</span>
               </div>
-              <div className="space-y-1.5">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Freshwater:</span>
-                  <span className="text-slate-400">{waterWaste.water_consumption_kl ? `${waterWaste.water_consumption_kl} kL` : '—'}</span>
+              <div className="space-y-2">
+                <div className="flex justify-between items-start gap-2">
+                  <span className="text-slate-500 shrink-0">Freshwater:</span>
+                  <span className="text-slate-400 text-right break-words">{waterWaste.water_consumption_kl ? `${waterWaste.water_consumption_kl} kL` : '—'}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Recycled Water:</span>
-                  <span className="text-slate-400">{waterWaste.recycled_water_kl ? `${waterWaste.recycled_water_kl} kL` : '—'}</span>
+                <div className="flex justify-between items-start gap-2">
+                  <span className="text-slate-500 shrink-0">Recycled Water:</span>
+                  <span className="text-slate-400 text-right break-words">{waterWaste.recycled_water_kl ? `${waterWaste.recycled_water_kl} kL` : '—'}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Hazardous Waste:</span>
-                  <span className="text-slate-400">{waterWaste.hazardous_waste_kg ? `${waterWaste.hazardous_waste_kg} kg` : '—'}</span>
+                <div className="flex justify-between items-start gap-2">
+                  <span className="text-slate-500 shrink-0">Hazardous Waste:</span>
+                  <span className="text-slate-400 text-right break-words">{waterWaste.hazardous_waste_kg ? `${waterWaste.hazardous_waste_kg} kg` : '—'}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Solid Waste:</span>
-                  <span className="text-slate-400">{waterWaste.non_hazardous_waste_kg ? `${waterWaste.non_hazardous_waste_kg} kg` : '—'}</span>
+                <div className="flex justify-between items-start gap-2">
+                  <span className="text-slate-500 shrink-0">Solid Waste:</span>
+                  <span className="text-slate-400 text-right break-words">{waterWaste.non_hazardous_waste_kg ? `${waterWaste.non_hazardous_waste_kg} kg` : '—'}</span>
                 </div>
               </div>
             </div>
@@ -829,24 +835,24 @@ export default function DocumentDetail({
                 </span>
                 <span className="text-[10px] text-slate-400">Billing</span>
               </div>
-              <div className="space-y-1.5">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Net Payable:</span>
-                  <span className="font-semibold text-slate-900">
+              <div className="space-y-2">
+                <div className="flex justify-between items-start gap-2">
+                  <span className="text-slate-500 shrink-0">Net Payable:</span>
+                  <span className="font-semibold text-slate-900 text-right break-words">
                     {energy.total_energy_cost_inr ? `₹${energy.total_energy_cost_inr.toLocaleString()}` : '₹4,53,169.56'}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Power Factor:</span>
-                  <span className="font-semibold text-slate-900">{energy.power_factor ? `${energy.power_factor} PF` : '0.96 PF'}</span>
+                <div className="flex justify-between items-start gap-2">
+                  <span className="text-slate-500 shrink-0">Power Factor:</span>
+                  <span className="font-semibold text-slate-900 text-right break-words">{energy.power_factor ? `${energy.power_factor} PF` : '0.96 PF'}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Tariff Code:</span>
-                  <span className="text-slate-800">HT-2 Industrial</span>
+                <div className="flex justify-between items-start gap-2">
+                  <span className="text-slate-500 shrink-0">Tariff Code:</span>
+                  <span className="text-slate-800 text-right break-words">HT-2 Industrial</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Status:</span>
-                  <span className="text-emerald-700 font-medium">Paid / Settled</span>
+                <div className="flex justify-between items-start gap-2">
+                  <span className="text-slate-500 shrink-0">Status:</span>
+                  <span className="text-emerald-700 font-medium text-right">Paid / Settled</span>
                 </div>
               </div>
             </div>
@@ -856,7 +862,7 @@ export default function DocumentDetail({
 
       {/* 6. SECTION 3 — CARBON FOOTPRINT & PROGRESSIVE EXPANSION */}
       <section ref={sectionRefs.carbon} className="space-y-4">
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-5">
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-xs space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
             <div>
               <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
@@ -867,11 +873,11 @@ export default function DocumentDetail({
               </p>
             </div>
 
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2 w-full sm:w-auto">
               <button
                 onClick={handleRunCarbonCalculation}
                 disabled={isCalculatingCarbon}
-                className="px-3 py-1.5 bg-[#EAF7F2] hover:bg-[#d5f3e9] text-[#0F6B56] border border-[#c4eedf] rounded-lg text-xs font-semibold transition-colors flex items-center space-x-1.5 disabled:opacity-50 shadow-2xs"
+                className="w-full sm:w-auto justify-center px-3.5 py-2 bg-[#EAF7F2] hover:bg-[#d5f3e9] text-[#0F6B56] border border-[#c4eedf] rounded-lg text-xs font-semibold transition-colors flex items-center space-x-1.5 disabled:opacity-50 shadow-2xs"
               >
                 <Calculator className={`w-3.5 h-3.5 ${isCalculatingCarbon ? 'animate-spin' : ''}`} />
                 <span>Recalculate Emissions</span>
@@ -880,7 +886,7 @@ export default function DocumentDetail({
               <button
                 onClick={handlePostToLedger}
                 disabled={isPostingLedger}
-                className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition-colors flex items-center space-x-1.5 disabled:opacity-50 shadow-2xs"
+                className="w-full sm:w-auto justify-center px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition-colors flex items-center space-x-1.5 disabled:opacity-50 shadow-2xs"
               >
                 <BookOpen className="w-3.5 h-3.5" />
                 <span>Post to Ledger</span>
@@ -889,12 +895,12 @@ export default function DocumentDetail({
           </div>
 
           {/* Primary Carbon KPI Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4">
             <div className="p-4 bg-emerald-50/50 rounded-xl border border-emerald-200/80">
               <span className="text-xs font-semibold text-emerald-800 uppercase tracking-wider block mb-1">
                 Total GHG Footprint
               </span>
-              <div className="text-2xl font-bold text-[#0F6B56]">
+              <div className="text-2xl sm:text-3xl font-bold text-[#0F6B56]">
                 {totalCarbonT} <span className="text-xs font-normal text-slate-500">tCO₂e</span>
               </div>
               <span className="text-[11px] text-emerald-700 mt-1 block">
@@ -904,9 +910,9 @@ export default function DocumentDetail({
 
             <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">
-                Scope 1 Direct (Stationary Diesel)
+                Scope 1 Direct (Diesel)
               </span>
-              <div className="text-xl font-bold text-slate-900">
+              <div className="text-xl sm:text-2xl font-bold text-slate-900">
                 {scope1T} <span className="text-xs font-normal text-slate-400">tCO₂e</span>
               </div>
               <span className="text-[11px] text-slate-500 mt-1 block">
@@ -916,13 +922,13 @@ export default function DocumentDetail({
 
             <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">
-                Scope 2 Indirect (Grid Power)
+                Scope 2 Indirect (Grid)
               </span>
-              <div className="text-xl font-bold text-slate-900">
+              <div className="text-xl sm:text-2xl font-bold text-slate-900">
                 {scope2T} <span className="text-xs font-normal text-slate-400">tCO₂e</span>
               </div>
               <span className="text-[11px] text-slate-500 mt-1 block">
-                Factor: 0.71 kg CO₂e / kWh (CEA India)
+                Factor: 0.71 kg CO₂e / kWh (CEA)
               </span>
             </div>
           </div>
@@ -939,35 +945,35 @@ export default function DocumentDetail({
                   <Calculator className="w-4 h-4 text-slate-500" />
                   <span>Carbon Calculations & Factor Snapshots</span>
                 </div>
-                {expandCalculationDetails ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                {expandCalculationDetails ? <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" /> : <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />}
               </button>
 
               {expandCalculationDetails && (
                 <div className="p-4 bg-white border-t border-slate-200 overflow-x-auto">
-                  <table className="w-full text-left text-xs">
+                  <table className="w-full text-left text-xs min-w-[500px]">
                     <thead>
                       <tr className="border-b border-slate-200 text-slate-500 font-semibold">
-                        <th className="py-2">Activity Type</th>
-                        <th className="py-2">Quantity</th>
-                        <th className="py-2">Emission Factor</th>
-                        <th className="py-2">Factor Code</th>
-                        <th className="py-2 text-right">Calculated tCO₂e</th>
+                        <th className="py-2 px-2">Activity Type</th>
+                        <th className="py-2 px-2">Quantity</th>
+                        <th className="py-2 px-2">Emission Factor</th>
+                        <th className="py-2 px-2">Factor Code</th>
+                        <th className="py-2 px-2 text-right">Calculated tCO₂e</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       <tr>
-                        <td className="py-2.5 font-medium text-slate-900">Purchased Grid Electricity</td>
-                        <td className="py-2.5">44,900 kWh</td>
-                        <td className="py-2.5 font-mono">0.7100 kgCO₂e/kWh</td>
-                        <td className="py-2.5 font-mono text-slate-500">EF-IN-ELEC-GRID-2024</td>
-                        <td className="py-2.5 text-right font-bold text-slate-900">31.8790 tCO₂e</td>
+                        <td className="py-2.5 px-2 font-medium text-slate-900">Purchased Grid Electricity</td>
+                        <td className="py-2.5 px-2">44,900 kWh</td>
+                        <td className="py-2.5 px-2 font-mono">0.7100 kgCO₂e/kWh</td>
+                        <td className="py-2.5 px-2 font-mono text-slate-500">EF-IN-ELEC-GRID-2024</td>
+                        <td className="py-2.5 px-2 text-right font-bold text-slate-900">31.8790 tCO₂e</td>
                       </tr>
                       <tr>
-                        <td className="py-2.5 font-medium text-slate-900">Stationary Diesel Generator</td>
-                        <td className="py-2.5">420 Liters</td>
-                        <td className="py-2.5 font-mono">2.6800 kgCO₂e/L</td>
-                        <td className="py-2.5 font-mono text-slate-500">EF-IN-DIESEL-STATIONARY</td>
-                        <td className="py-2.5 text-right font-bold text-slate-900">1.1256 tCO₂e</td>
+                        <td className="py-2.5 px-2 font-medium text-slate-900">Stationary Diesel Generator</td>
+                        <td className="py-2.5 px-2">420 Liters</td>
+                        <td className="py-2.5 px-2 font-mono">2.6800 kgCO₂e/L</td>
+                        <td className="py-2.5 px-2 font-mono text-slate-500">EF-IN-DIESEL-STATIONARY</td>
+                        <td className="py-2.5 px-2 text-right font-bold text-slate-900">1.1256 tCO₂e</td>
                       </tr>
                     </tbody>
                   </table>
@@ -990,7 +996,7 @@ export default function DocumentDetail({
                     </span>
                   )}
                 </div>
-                {expandLedgerRecords ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                {expandLedgerRecords ? <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" /> : <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />}
               </button>
 
               {expandLedgerRecords && (
@@ -998,7 +1004,7 @@ export default function DocumentDetail({
                   <p className="text-slate-500 text-[11px]">
                     Double-entry GHG accounting journal with immutable calculation IDs and compliance timestamps.
                   </p>
-                  <div className="p-3 bg-slate-50 rounded-lg font-mono text-[11px] text-slate-700 space-y-1">
+                  <div className="p-3 bg-slate-50 rounded-lg font-mono text-[11px] text-slate-700 space-y-1 break-words">
                     <div>Journal Batch #POSTED-DOC-1 &bull; Scope 1: 1,125.60 kgCO₂e &bull; Scope 2: 31,879.00 kgCO₂e</div>
                     <div>Accounting Status: POSTED &bull; Audited: Verified Baseline Record</div>
                   </div>
@@ -1019,7 +1025,7 @@ export default function DocumentDetail({
                     Reconciled
                   </span>
                 </div>
-                {expandReconciliation ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                {expandReconciliation ? <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" /> : <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />}
               </button>
 
               {expandReconciliation && (
@@ -1045,7 +1051,7 @@ export default function DocumentDetail({
 
       {/* 7. SECTION 4 — REDUCTION INSIGHTS & AI ACTIONS */}
       <section ref={sectionRefs.reduction} className="space-y-4">
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-5">
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-xs space-y-5">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div>
               <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
@@ -1058,13 +1064,13 @@ export default function DocumentDetail({
           </div>
 
           {/* AI Recommendations Action Card */}
-          <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-50/80 to-teal-50/80 border border-[#c4eedf] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="p-4 sm:p-5 rounded-xl bg-gradient-to-r from-emerald-50/80 to-teal-50/80 border border-[#c4eedf] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-start space-x-3">
               <div className="w-9 h-9 rounded-xl bg-white text-[#0F6B56] flex items-center justify-center shrink-0 shadow-2xs border border-[#c4eedf]">
                 <Sparkles className="w-4 h-4" />
               </div>
               <div>
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <h3 className="text-xs font-bold text-slate-900">Proactive AI Recommendations</h3>
                   <span className="px-2 py-0.2 rounded-full bg-[#0F6B56] text-white text-[10px] font-semibold">
                     {docActions.length || 11} Actions Available
@@ -1078,7 +1084,7 @@ export default function DocumentDetail({
 
             <button
               onClick={() => setShowAllActions(!showAllActions)}
-              className="px-3.5 py-2 bg-[#0F6B56] hover:bg-[#0c5947] text-white rounded-lg text-xs font-semibold transition-colors shrink-0 shadow-2xs"
+              className="w-full sm:w-auto justify-center px-4 py-2 bg-[#0F6B56] hover:bg-[#0c5947] text-white rounded-lg text-xs font-semibold transition-colors shrink-0 shadow-2xs text-center"
             >
               {showAllActions ? 'Hide Actions' : `Review ${docActions.length || 11} Actions →`}
             </button>
@@ -1092,25 +1098,25 @@ export default function DocumentDetail({
                 { id: 2, title: 'Investigate Grid Electricity Consumption Trajectory', priority: 'HIGH', category: 'REDUCTION', status: 'ACTIVE' },
                 { id: 3, title: 'Audit Diesel Generator Fuel Consumption Rate', priority: 'MEDIUM', category: 'ENERGY_EFFICIENCY', status: 'ACTIVE' },
               ]).map((act) => (
-                <div key={act.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                  <div className="flex items-center space-x-2.5">
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                <div key={act.id} className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
+                  <div className="flex items-start sm:items-center space-x-2.5 min-w-0">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold shrink-0 mt-0.5 sm:mt-0 ${
                       act.priority === 'HIGH' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'
                     }`}>
                       {act.priority}
                     </span>
-                    <span className="font-semibold text-slate-900">{act.title}</span>
+                    <span className="font-semibold text-slate-900 break-words">{act.title}</span>
                   </div>
-                  <div className="flex items-center space-x-1.5 shrink-0">
+                  <div className="flex items-center space-x-2 shrink-0 self-end sm:self-auto">
                     <button
                       onClick={() => handleExplainAction(act.id)}
-                      className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded text-slate-700 text-[11px] font-medium transition-colors"
+                      className="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-700 text-[11px] font-medium transition-colors"
                     >
                       Explain
                     </button>
                     <button
                       onClick={() => handleStartAction(act.id)}
-                      className="px-2.5 py-1 bg-[#0F6B56] hover:bg-[#0c5947] text-white rounded text-[11px] font-medium transition-colors"
+                      className="px-3 py-1.5 bg-[#0F6B56] hover:bg-[#0c5947] text-white rounded-lg text-[11px] font-medium transition-colors"
                     >
                       Start Action
                     </button>
@@ -1125,38 +1131,44 @@ export default function DocumentDetail({
             <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
               Top Decarbonization Priorities
             </h3>
-            <div className="space-y-2 text-xs">
-              <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-200 flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-[#0F6B56] font-bold text-xs flex items-center justify-center">1</span>
-                  <div>
-                    <span className="font-bold text-slate-900">Solar Captive Utilization</span>
-                    <p className="text-[11px] text-slate-500">Increase solar PV ratio to replace 30% of high-tariff grid power.</p>
+            <div className="space-y-2.5 text-xs">
+              <div className="p-3.5 sm:p-4 bg-slate-50/80 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div className="flex items-start sm:items-center space-x-3 min-w-0">
+                  <span className="w-6 h-6 rounded-full bg-emerald-100 text-[#0F6B56] font-bold text-xs flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">1</span>
+                  <div className="min-w-0">
+                    <span className="font-bold text-slate-900 block">Solar Captive Utilization</span>
+                    <p className="text-[11px] text-slate-500 break-words mt-0.5">Increase solar PV ratio to replace 30% of high-tariff grid power.</p>
                   </div>
                 </div>
-                <span className="text-emerald-700 font-bold font-mono">−9.56 tCO₂e</span>
+                <div className="sm:text-right shrink-0 pl-9 sm:pl-0">
+                  <span className="text-emerald-700 font-bold font-mono text-xs sm:text-sm">−9.56 tCO₂e</span>
+                </div>
               </div>
 
-              <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-200 flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-[#0F6B56] font-bold text-xs flex items-center justify-center">2</span>
-                  <div>
-                    <span className="font-bold text-slate-900">Diesel Consumption Optimization</span>
-                    <p className="text-[11px] text-slate-500">Reduce backup generator runtime through predictive demand peak management.</p>
+              <div className="p-3.5 sm:p-4 bg-slate-50/80 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div className="flex items-start sm:items-center space-x-3 min-w-0">
+                  <span className="w-6 h-6 rounded-full bg-emerald-100 text-[#0F6B56] font-bold text-xs flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">2</span>
+                  <div className="min-w-0">
+                    <span className="font-bold text-slate-900 block">Diesel Consumption Optimization</span>
+                    <p className="text-[11px] text-slate-500 break-words mt-0.5">Reduce backup generator runtime through predictive demand peak management.</p>
                   </div>
                 </div>
-                <span className="text-emerald-700 font-bold font-mono">−0.22 tCO₂e</span>
+                <div className="sm:text-right shrink-0 pl-9 sm:pl-0">
+                  <span className="text-emerald-700 font-bold font-mono text-xs sm:text-sm">−0.22 tCO₂e</span>
+                </div>
               </div>
 
-              <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-200 flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-[#0F6B56] font-bold text-xs flex items-center justify-center">3</span>
-                  <div>
-                    <span className="font-bold text-slate-900">Power Factor Bonus Stabilization</span>
-                    <p className="text-[11px] text-slate-500">Maintain PF &gt; 0.98 to avoid reactive power tariff penalties.</p>
+              <div className="p-3.5 sm:p-4 bg-slate-50/80 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div className="flex items-start sm:items-center space-x-3 min-w-0">
+                  <span className="w-6 h-6 rounded-full bg-emerald-100 text-[#0F6B56] font-bold text-xs flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">3</span>
+                  <div className="min-w-0">
+                    <span className="font-bold text-slate-900 block">Power Factor Bonus Stabilization</span>
+                    <p className="text-[11px] text-slate-500 break-words mt-0.5">Maintain PF &gt; 0.98 to avoid reactive power tariff penalties.</p>
                   </div>
                 </div>
-                <span className="text-emerald-700 font-bold font-mono">₹15,413 Rebate</span>
+                <div className="sm:text-right shrink-0 pl-9 sm:pl-0">
+                  <span className="text-emerald-700 font-bold font-mono text-xs sm:text-sm">₹15,413 Rebate</span>
+                </div>
               </div>
             </div>
           </div>
@@ -1166,8 +1178,8 @@ export default function DocumentDetail({
       {/* 8. SECTION 5 — SOURCE EVIDENCE & EXTRACTED DATA */}
       <section ref={sectionRefs.evidence} className="space-y-4">
         {/* Source Evidence Card */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-xs space-y-4">
+          <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 border-b border-slate-100 pb-3">
             <div>
               <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
                 Source Evidence & OCR Lineage
@@ -1179,34 +1191,34 @@ export default function DocumentDetail({
             {evidenceList.length > 5 && (
               <button
                 onClick={() => setShowAllEvidence(!showAllEvidence)}
-                className="text-xs text-[#0F6B56] hover:underline font-semibold"
+                className="text-xs text-[#0F6B56] hover:underline font-semibold self-start xs:self-auto"
               >
                 {showAllEvidence ? 'Show top 5' : `View all ${evidenceList.length} evidence →`}
               </button>
             )}
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+            <table className="w-full text-left text-xs min-w-[540px]">
               <thead>
-                <tr className="border-b border-slate-200 text-slate-500 font-semibold">
-                  <th className="py-2.5">Field</th>
-                  <th className="py-2.5">Extracted Value</th>
-                  <th className="py-2.5">Confidence</th>
-                  <th className="py-2.5">Document Snippet / Source</th>
+                <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-semibold">
+                  <th className="py-2.5 px-3">Field</th>
+                  <th className="py-2.5 px-3">Extracted Value</th>
+                  <th className="py-2.5 px-3">Confidence</th>
+                  <th className="py-2.5 px-3">Document Snippet / Source</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-800">
                 {evidenceToShow.map((ev, idx) => (
                   <tr key={idx} className="hover:bg-slate-50/60">
-                    <td className="py-2.5 font-semibold text-slate-900">{ev.field || 'Evidence'}</td>
-                    <td className="py-2.5 font-medium">{String(ev.value || '—')} {ev.unit || ''}</td>
-                    <td className="py-2.5">
+                    <td className="py-2.5 px-3 font-semibold text-slate-900">{ev.field || 'Evidence'}</td>
+                    <td className="py-2.5 px-3 font-medium">{String(ev.value || '—')} {ev.unit || ''}</td>
+                    <td className="py-2.5 px-3">
                       <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
                         {ev.confidence_level || 'HIGH'} ({Math.round((ev.confidence || 0.95) * 100)}%)
                       </span>
                     </td>
-                    <td className="py-2.5 text-slate-500 italic max-w-xs truncate">
+                    <td className="py-2.5 px-3 text-slate-500 italic max-w-xs truncate" title={ev.source_text || ev.snippet || 'Extracted from Page 1 table'}>
                       "{ev.source_text || ev.snippet || 'Extracted from Page 1 table'}"
                     </td>
                   </tr>
@@ -1217,7 +1229,7 @@ export default function DocumentDetail({
         </div>
 
         {/* Extracted Fields Table Card */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
             <div>
               <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
@@ -1228,7 +1240,7 @@ export default function DocumentDetail({
               </p>
             </div>
 
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => setFilterReviewOnly(false)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
@@ -1248,10 +1260,10 @@ export default function DocumentDetail({
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+            <table className="w-full text-left text-xs min-w-[580px]">
               <thead>
-                <tr className="border-b border-slate-200 text-slate-500 font-semibold">
+                <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-semibold">
                   <th className="py-2.5 px-3">Field Name</th>
                   <th className="py-2.5 px-3">Extracted Value</th>
                   <th className="py-2.5 px-3">Category</th>
@@ -1323,7 +1335,7 @@ export default function DocumentDetail({
                                 setEditValue(row.value !== null && row.value !== undefined ? String(row.value) : '');
                                 setEditUnit(row.unit || '');
                               }}
-                              className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                              className="p-1.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100"
                               title="Edit field value"
                             >
                               <Edit3 className="w-3.5 h-3.5" />
@@ -1332,7 +1344,7 @@ export default function DocumentDetail({
                           {hasValue && (
                             <button
                               onClick={() => handleVerifyField(row.fieldName)}
-                              className="px-2 py-1 bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 rounded text-slate-700 hover:text-emerald-700 text-[11px] font-medium"
+                              className="px-2.5 py-1 bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 rounded-md text-slate-700 hover:text-emerald-700 text-[11px] font-medium"
                               title="Confirm verification"
                             >
                               Verify
@@ -1351,7 +1363,7 @@ export default function DocumentDetail({
 
       {/* 9. SECTION 6 — ADVANCED & TECHNICAL DETAILS (Progressive Disclosure) */}
       <section ref={sectionRefs.technical} className="space-y-4">
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-xs space-y-4">
           <div className="border-b border-slate-100 pb-3">
             <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
               Advanced & Technical Details
@@ -1372,7 +1384,7 @@ export default function DocumentDetail({
                   <Info className="w-4 h-4 text-slate-500" />
                   <span>Processing Metadata & Engine Diagnostics</span>
                 </div>
-                {expandTechnicalMeta ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                {expandTechnicalMeta ? <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" /> : <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />}
               </button>
 
               {expandTechnicalMeta && (
@@ -1403,11 +1415,11 @@ export default function DocumentDetail({
                   <FileText className="w-4 h-4 text-slate-500" />
                   <span>Raw Extracted Document Text</span>
                 </div>
-                {expandRawText ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                {expandRawText ? <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" /> : <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />}
               </button>
 
               {expandRawText && (
-                <div className="p-4 bg-slate-900 text-slate-100 border-t border-slate-200 font-mono text-[11px] leading-relaxed max-h-80 overflow-y-auto rounded-b-xl whitespace-pre-wrap">
+                <div className="p-4 bg-slate-900 text-slate-100 border-t border-slate-200 font-mono text-[11px] leading-relaxed max-h-80 overflow-y-auto rounded-b-xl whitespace-pre-wrap break-all">
                   {doc.raw_text || doc.structured_data?.raw_text || 'No raw text available.'}
                 </div>
               )}
