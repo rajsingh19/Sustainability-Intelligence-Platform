@@ -97,8 +97,7 @@ export default function GreenFinance({ onNavigate }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 space-y-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="w-full space-y-6 pb-12">
         
         {/* HEADER */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -312,6 +311,5 @@ export default function GreenFinance({ onNavigate }) {
         )}
 
       </div>
-    </div>
   );
 }

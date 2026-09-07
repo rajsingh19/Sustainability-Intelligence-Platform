@@ -130,7 +130,7 @@ export default function ActivityDataPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 p-6 max-w-7xl mx-auto space-y-6">
+    <div className="w-full space-y-6 pb-12">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-200 pb-5">
         <div>

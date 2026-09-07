@@ -82,7 +82,7 @@ export default function Documents({
       {/* 1. TOP HEADER & MAIN ACTION */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Documents</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Documents</h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
             Manage and review business documents, verification workflows, and OCR extracted metrics.
           </p>
@@ -90,7 +90,7 @@ export default function Documents({
 
         <button
           onClick={() => setShowUpload(!showUpload)}
-          className="inline-flex items-center justify-center space-x-2 px-4 py-2.5 bg-[#0F6B56] hover:bg-[#0c5947] text-white rounded-xl text-xs font-semibold transition-all shadow-xs hover:shadow-sm self-start sm:self-auto shrink-0"
+          className="inline-flex items-center justify-center space-x-2 px-4 py-2.5 bg-[#0F6B56] hover:bg-[#0c5947] text-white rounded-xl text-xs font-semibold transition-all shadow-xs hover:shadow-sm w-full sm:w-auto shrink-0 min-h-[40px]"
         >
           <Plus className="w-4 h-4" />
           <span>{showUpload ? 'Close Upload' : 'Upload Document'}</span>

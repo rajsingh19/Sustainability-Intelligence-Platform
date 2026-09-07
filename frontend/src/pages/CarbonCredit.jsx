@@ -141,8 +141,7 @@ export default function CarbonCredit({ onNavigate }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 space-y-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="w-full space-y-6 pb-12">
         
         {/* HEADER */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -325,9 +324,7 @@ export default function CarbonCredit({ onNavigate }) {
           </div>
         )}
 
-      </div>
-
-      {/* CREATE ASSESSMENT MODAL */}
+        {/* CREATE ASSESSMENT MODAL */}
       {createModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-lg w-full p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">

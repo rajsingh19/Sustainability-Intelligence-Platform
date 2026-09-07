@@ -166,8 +166,7 @@ export default function ReductionOpportunities() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="w-full space-y-6 pb-12">
 
         {/* HEADER */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -572,6 +571,5 @@ export default function ReductionOpportunities() {
         )}
 
       </div>
-    </div>
   );
 }

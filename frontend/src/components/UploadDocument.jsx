@@ -214,23 +214,23 @@ export default function UploadDocument({ onUploadSuccess, onCancel }) {
             </button>
           </div>
 
-          <div className="flex items-center justify-between pt-1">
-            <label className="flex items-center space-x-2 text-xs text-slate-600 cursor-pointer">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+            <label className="flex items-center space-x-2 text-xs text-slate-600 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={forceOcr}
                 onChange={(e) => setForceOcr(e.target.checked)}
-                className="rounded border-slate-300 text-[#0f6b56] focus:ring-teal-600"
+                className="rounded border-slate-300 text-[#0f6b56] focus:ring-teal-600 w-4 h-4"
               />
               <span>Force OCR (for scanned image documents)</span>
             </label>
 
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 w-full sm:w-auto justify-end">
               {onCancel && (
                 <button
                   type="button"
                   onClick={onCancel}
-                  className="px-3 py-1.5 border border-slate-200 rounded text-xs font-medium text-slate-700 hover:bg-slate-50"
+                  className="flex-1 sm:flex-none px-3.5 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
                 >
                   Cancel
                 </button>
@@ -238,7 +238,7 @@ export default function UploadDocument({ onUploadSuccess, onCancel }) {
               <button
                 type="button"
                 onClick={handleUpload}
-                className="px-4 py-1.5 bg-[#0f6b56] hover:bg-[#0c5947] text-white rounded text-xs font-semibold transition-colors shadow-2xs"
+                className="flex-1 sm:flex-none px-4 py-2 bg-[#0f6b56] hover:bg-[#0c5947] text-white rounded-lg text-xs font-semibold transition-colors shadow-2xs text-center"
               >
                 Upload & Extract
               </button>

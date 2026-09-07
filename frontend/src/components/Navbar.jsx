@@ -351,8 +351,9 @@ export default function Navbar({
             {/* Mobile Menu Toggle */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-1.5 rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-100 md:hidden"
+              className="w-10 h-10 flex items-center justify-center rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 md:hidden transition-colors"
               aria-label="Toggle Navigation Menu"
+              aria-expanded={mobileMenuOpen}
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -374,15 +375,15 @@ export default function Navbar({
                   <button
                     key={group.id}
                     onClick={() => handleNavClick(group)}
-                    className={`w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold flex items-center justify-between ${
+                    className={`w-full text-left px-3.5 py-3 rounded-xl text-xs font-semibold flex items-center justify-between min-h-[44px] transition-colors ${
                       isActive ? 'bg-[#EAF7F2] text-[#0F6B56]' : 'text-slate-700 hover:bg-slate-50'
                     }`}
                   >
-                    <div className="flex items-center space-x-2">
-                      {IconComponent && <IconComponent className="w-3.5 h-3.5 text-slate-500 shrink-0" />}
-                      <span>{group.label}</span>
+                    <div className="flex items-center space-x-2.5">
+                      {IconComponent && <IconComponent className="w-4 h-4 text-slate-500 shrink-0" />}
+                      <span className="text-sm font-semibold">{group.label}</span>
                     </div>
-                    {isActive && <span className="w-1.5 h-1.5 rounded-full bg-[#0F6B56]" />}
+                    {isActive && <span className="w-2 h-2 rounded-full bg-[#0F6B56]" />}
                   </button>
                 );
               }
@@ -391,15 +392,15 @@ export default function Navbar({
               const isGroupActive = activeGroupId === group.id;
 
               return (
-                <div key={group.id} className="border border-slate-100 rounded-lg overflow-hidden">
+                <div key={group.id} className="border border-slate-100 rounded-xl overflow-hidden">
                   <button
                     onClick={() => setMobileExpandedGroup(isExpanded ? null : group.id)}
-                    className={`w-full text-left px-3 py-2.5 text-xs font-semibold flex items-center justify-between ${
-                      isGroupActive ? 'text-[#0F6B56] bg-[#EAF7F2]/50' : 'text-slate-800'
+                    className={`w-full text-left px-3.5 py-3 text-xs font-semibold flex items-center justify-between min-h-[44px] transition-colors ${
+                      isGroupActive ? 'text-[#0F6B56] bg-[#EAF7F2]/50' : 'text-slate-800 hover:bg-slate-50'
                     }`}
                   >
-                    <span>{group.label}</span>
-                    <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                    <span className="text-sm font-semibold">{group.label}</span>
+                    <ChevronDown className={`w-4 h-4 transition-transform text-slate-400 ${isExpanded ? 'rotate-180 text-slate-700' : ''}`} />
                   </button>
 
                   {isExpanded && (
@@ -412,14 +413,14 @@ export default function Navbar({
                           <button
                             key={item.id}
                             onClick={() => handleNavClick(item)}
-                            className={`w-full text-left p-2 rounded-md text-xs flex items-center space-x-2 ${
+                            className={`w-full text-left p-2.5 rounded-lg text-xs flex items-center space-x-2.5 min-h-[40px] transition-colors ${
                               isItemActive
                                 ? 'bg-[#EAF7F2] text-[#0F6B56] font-semibold'
                                 : 'text-slate-700 hover:bg-white'
                             }`}
                           >
-                            <IconComponent className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                            <span className="truncate">{item.label}</span>
+                            <IconComponent className="w-4 h-4 text-slate-500 shrink-0" />
+                            <span className="truncate text-xs font-medium">{item.label}</span>
                           </button>
                         );
                       })}
@@ -429,6 +430,50 @@ export default function Navbar({
               );
             })}
           </div>
+
+          {/* Mobile Sample PDFs Quick Trigger */}
+          {onSeedSample && (
+            <div className="pt-2 border-t border-slate-100">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1 mb-2">
+                Seed Demo Documents
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    onSeedSample('electricity');
+                  }}
+                  disabled={isSeeding}
+                  className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-left hover:bg-white text-xs disabled:opacity-50"
+                >
+                  <div className="text-sm">⚡</div>
+                  <div className="font-semibold text-slate-800 text-[11px] mt-0.5">Electric Bill</div>
+                </button>
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    onSeedSample('esg');
+                  }}
+                  disabled={isSeeding}
+                  className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-left hover:bg-white text-xs disabled:opacity-50"
+                >
+                  <div className="text-sm">🌱</div>
+                  <div className="font-semibold text-slate-800 text-[11px] mt-0.5">ESG Audit</div>
+                </button>
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    onSeedSample('scanned');
+                  }}
+                  disabled={isSeeding}
+                  className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-left hover:bg-white text-xs disabled:opacity-50"
+                >
+                  <div className="text-sm">📄</div>
+                  <div className="font-semibold text-slate-800 text-[11px] mt-0.5">Waste Manifest</div>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

@@ -104,7 +104,7 @@ export default function EmissionFactors() {
   });
 
   return (
-    <div className="w-full max-w-7xl mx-auto py-6 px-4 sm:px-6 space-y-6">
+    <div className="w-full space-y-6 pb-12">
       
       {/* Header Banner */}
       <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-2xs">

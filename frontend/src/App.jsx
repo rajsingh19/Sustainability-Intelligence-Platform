@@ -419,7 +419,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans overflow-x-hidden">
       
       {/* Top Navbar */}
       <Navbar
@@ -432,7 +432,7 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3.5 sm:px-6 lg:px-8 py-4 sm:py-8">
         {reportDocId ? (
           <EvidenceReport
             documentId={reportDocId}
@@ -564,9 +564,6 @@ export default function App() {
             onSelectDocument={handleSelectDocument}
           />
         ) : activeTab === 'metrics' ? (
-
-
-
           <Metrics
             stats={stats}
             documents={documents}
@@ -595,14 +592,14 @@ export default function App() {
       </main>
 
       {/* Minimal Footer */}
-      <footer className="border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-500">
+      <footer className="border-t border-slate-200 bg-white py-4 px-4 text-center text-xs text-slate-500">
         <p>Senseible Document Extractor &bull; Enterprise Sustainability Intelligence</p>
       </footer>
 
       {/* Global Floating Ask AI Trigger */}
       <button
         onClick={() => setIsAiDrawerOpen(true)}
-        className="fixed bottom-6 right-6 z-40 px-4 py-2.5 rounded-full bg-[#0F6B56] hover:bg-[#0c5947] text-white text-xs font-bold shadow-lg hover:shadow-xl transition-all flex items-center space-x-2 border border-[#c4eedf]/40 group"
+        className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-40 px-4 py-2.5 rounded-full bg-[#0F6B56] hover:bg-[#0c5947] text-white text-xs font-bold shadow-lg hover:shadow-xl transition-all flex items-center space-x-2 border border-[#c4eedf]/40 group"
         title="Open Senseible AI Assistant"
       >
         <Sparkles className="w-4 h-4 text-emerald-200 group-hover:rotate-12 transition-transform" />

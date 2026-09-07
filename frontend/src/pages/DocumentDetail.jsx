@@ -525,7 +525,7 @@ export default function DocumentDetail({
       </div>
 
       {/* 2. TOP SUMMARY AREA — 4 HIGH-VALUE METRICS */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Extraction Quality */}
         <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between text-xs text-slate-500 font-medium">

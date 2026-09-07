@@ -46,8 +46,14 @@ export default function AskAIDrawer({
 
   useEffect(() => {
     if (isOpen) {
+      document.body.style.overflow = 'hidden';
       setTimeout(() => inputRef.current?.focus(), 150);
+    } else {
+      document.body.style.overflow = '';
     }
+    return () => {
+      document.body.style.overflow = '';
+    };
   }, [isOpen]);
 
   useEffect(() => {
@@ -98,31 +104,33 @@ export default function AskAIDrawer({
       setMessages([...updatedMessages, assistantMsg]);
     } catch (err) {
       console.error('Ask AI error:', err);
-      setError('Unable to reach the sustainability AI service. Please try again.');
+      const detail = err.response?.data?.detail || err.message || 'Unable to process query. Please check your connection.';
+      setError(detail);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleCopy = (content, index) => {
-    navigator.clipboard.writeText(content);
-    setCopiedIndex(index);
-    setTimeout(() => setCopiedIndex(null), 2000);
   };
 
   const handleClear = () => {
     setMessages([
       {
         role: 'assistant',
-        content: 'Conversation cleared. How can I help you analyze your sustainability data today?',
+        content: 'Conversation cleared. How can I assist with your sustainability metrics today?',
         suggestions: [
           'What is our total carbon footprint across posted documents?',
           'Which documents currently need review?',
-          'What are the highest priority emission reduction opportunities?'
+          'What are the highest priority emission reduction opportunities?',
+          'Summarize Scope 1 vs Scope 2 emissions breakdown'
         ]
       }
     ]);
     setError(null);
+  };
+
+  const handleCopy = (text, idx) => {
+    navigator.clipboard.writeText(text);
+    setCopiedIndex(idx);
+    setTimeout(() => setCopiedIndex(null), 2000);
   };
 
   if (!isOpen) return null;
@@ -131,16 +139,16 @@ export default function AskAIDrawer({
     <div className="fixed inset-0 z-50 overflow-hidden flex justify-end pointer-events-auto">
       {/* Dim backdrop */}
       <div 
-        className="fixed inset-0 bg-slate-900/20 backdrop-blur-xs transition-opacity"
+        className="fixed inset-0 bg-slate-900/30 backdrop-blur-xs transition-opacity"
         onClick={onClose}
       />
 
       {/* Slide-over Drawer Panel */}
       <div 
-        className={`relative w-full ${isExpanded ? 'max-w-2xl' : 'max-w-md'} bg-white shadow-2xl border-l border-slate-200 flex flex-col h-full z-10 transition-all duration-200 ease-out`}
+        className={`relative w-full ${isExpanded ? 'sm:max-w-2xl' : 'sm:max-w-md'} max-w-full bg-white shadow-2xl border-l border-slate-200 flex flex-col h-full z-10 transition-all duration-200 ease-out`}
       >
         {/* Drawer Header */}
-        <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/80">
+        <div className="px-4 sm:px-5 py-3.5 sm:py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/90">
           <div className="flex items-center space-x-2.5 min-w-0">
             <div className="w-8 h-8 rounded-lg bg-[#0F6B56] text-white flex items-center justify-center shadow-xs shrink-0">
               <Sparkles className="w-4 h-4" />
@@ -163,22 +171,24 @@ export default function AskAIDrawer({
           <div className="flex items-center space-x-1 shrink-0">
             <button
               onClick={() => setIsExpanded(!isExpanded)}
-              className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-md transition-colors"
+              className="hidden sm:inline-flex p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-md transition-colors"
               title={isExpanded ? 'Collapse width' : 'Expand width'}
             >
               {isExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
             </button>
             <button
               onClick={handleClear}
-              className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-md transition-colors"
+              className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-md transition-colors"
               title="Clear conversation"
+              aria-label="Clear conversation"
             >
-              <RefreshCw className="w-3.5 h-3.5" />
+              <RefreshCw className="w-4 h-4" />
             </button>
             <button
               onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-md transition-colors"
+              className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-md transition-colors"
               title="Close drawer"
+              aria-label="Close drawer"
             >
               <X className="w-4 h-4" />
             </button>
