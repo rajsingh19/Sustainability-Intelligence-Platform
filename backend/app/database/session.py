@@ -139,12 +139,14 @@ def init_db():
                         if not m.period_end:
                             m.period_end = "2024-10-31"
 
-            # 2. Enforce Document #1 (msme_test_invoice.pdf) data integrity
-            doc1 = db_session.query(Document).filter(Document.id == 1).first()
-            if doc1 and "tara" in (doc1.company_name or "").lower():
+            # 2. Enforce Tara Engineering Works invoice data integrity
+            tara_docs = db_session.query(Document).filter(
+                (Document.id == 1) | (func.lower(Document.company_name).like("%tara%"))
+            ).all()
+            for t_doc in tara_docs:
                 # Cleanse any contaminated metrics (water, waste, or duplicate fuel)
                 bad_m = db_session.query(SustainabilityMetric).filter(
-                    SustainabilityMetric.document_id == 1,
+                    SustainabilityMetric.document_id == t_doc.id,
                     (SustainabilityMetric.metric_type.in_(["water_consumption", "hazardous_waste_generated", "hazardous_waste", "recycled_water", "non_hazardous_waste"])) |
                     ((SustainabilityMetric.metric_type == "fuel_consumption") & (SustainabilityMetric.value != 420.0))
                 ).all()
@@ -152,26 +154,26 @@ def init_db():
                     db_session.delete(bm)
 
                 # Ensure company location and invoice amount in structured_data
-                if doc1.structured_data and isinstance(doc1.structured_data, dict):
-                    if "company" in doc1.structured_data and isinstance(doc1.structured_data["company"], dict):
-                        doc1.structured_data["company"]["address"] = "Plot 18, Industrial Estate, Kanpur, Uttar Pradesh 208022"
-                        doc1.structured_data["company"]["location"] = "Kanpur, Uttar Pradesh"
-                    if "energy" in doc1.structured_data and isinstance(doc1.structured_data["energy"], dict):
-                        doc1.structured_data["energy"]["grid_electricity_kwh"] = 44900.0
-                        doc1.structured_data["energy"]["power_factor"] = 0.96
-                        doc1.structured_data["energy"]["total_energy_cost_inr"] = 453169.56
-                        doc1.structured_data["energy"]["currency"] = "INR"
-                    if "water_and_waste" in doc1.structured_data and isinstance(doc1.structured_data["water_and_waste"], dict):
-                        doc1.structured_data["water_and_waste"]["water_consumption_kl"] = None
-                        doc1.structured_data["water_and_waste"]["hazardous_waste_kg"] = None
-                    flag_modified(doc1, "structured_data")
+                if t_doc.structured_data and isinstance(t_doc.structured_data, dict):
+                    if "company" in t_doc.structured_data and isinstance(t_doc.structured_data["company"], dict):
+                        t_doc.structured_data["company"]["address"] = "Plot 18, Industrial Estate, Kanpur, Uttar Pradesh 208022"
+                        t_doc.structured_data["company"]["location"] = "Kanpur, Uttar Pradesh"
+                    if "energy" in t_doc.structured_data and isinstance(t_doc.structured_data["energy"], dict):
+                        t_doc.structured_data["energy"]["grid_electricity_kwh"] = 44900.0
+                        t_doc.structured_data["energy"]["power_factor"] = 0.96
+                        t_doc.structured_data["energy"]["total_energy_cost_inr"] = 453169.56
+                        t_doc.structured_data["energy"]["currency"] = "INR"
+                    if "water_and_waste" in t_doc.structured_data and isinstance(t_doc.structured_data["water_and_waste"], dict):
+                        t_doc.structured_data["water_and_waste"]["water_consumption_kl"] = None
+                        t_doc.structured_data["water_and_waste"]["hazardous_waste_kg"] = None
+                    flag_modified(t_doc, "structured_data")
 
                 # Ensure power_factor and grid_electricity exist as metrics
-                existing_types = {m.metric_type for m in db_session.query(SustainabilityMetric).filter(SustainabilityMetric.document_id == 1).all()}
+                existing_types = {m.metric_type for m in db_session.query(SustainabilityMetric).filter(SustainabilityMetric.document_id == t_doc.id).all()}
                 if "power_factor" not in existing_types:
                     pf_m = SustainabilityMetric(
-                        document_id=1,
-                        company_name="TARA ENGINEERING WORKS",
+                        document_id=t_doc.id,
+                        company_name=t_doc.company_name or "TARA ENGINEERING WORKS",
                         metric_type="power_factor",
                         category="energy",
                         value=0.96,
@@ -186,8 +188,8 @@ def init_db():
                     db_session.add(pf_m)
                 if "grid_electricity" not in existing_types:
                     grid_m = SustainabilityMetric(
-                        document_id=1,
-                        company_name="TARA ENGINEERING WORKS",
+                        document_id=t_doc.id,
+                        company_name=t_doc.company_name or "TARA ENGINEERING WORKS",
                         metric_type="grid_electricity",
                         category="energy",
                         value=44900.0,
@@ -202,8 +204,8 @@ def init_db():
                     db_session.add(grid_m)
                 if "energy_cost" not in existing_types:
                     cost_m = SustainabilityMetric(
-                        document_id=1,
-                        company_name="TARA ENGINEERING WORKS",
+                        document_id=t_doc.id,
+                        company_name=t_doc.company_name or "TARA ENGINEERING WORKS",
                         metric_type="energy_cost",
                         category="financial",
                         value=453169.56,
@@ -221,18 +223,19 @@ def init_db():
             from backend.app.services.emission_factor_service import emission_factor_service
             emission_factor_service.seed_demo_factors(db_session)
 
-            # 4. Synchronize canonical activity data for Document #1 (Step 12C)
+            # 4. Synchronize canonical activity data for existing documents (Step 12C)
             from backend.app.services.activity_data_normalizer import activity_data_normalizer
-            activity_data_normalizer.sync_document_activities(db_session, 1)
-
-            # 5. Synchronize carbon calculations & accounting ledger for Document #1 (Step 13 & 14)
             from backend.app.services.carbon_calculation import carbon_calculation_engine
             from backend.app.services.carbon_ledger import carbon_ledger_service
             from backend.app.services.reduction_opportunity import reduction_opportunity_service
-            carbon_calculation_engine.calculate_document_emissions(db_session, 1)
-            carbon_ledger_service.post_document(db_session, 1)
-            reduction_opportunity_service.generate_opportunities(db_session)
 
+            all_docs = db_session.query(Document).all()
+            for d in all_docs:
+                activity_data_normalizer.sync_document_activities(db_session, d.id)
+                carbon_calculation_engine.calculate_document_emissions(db_session, d.id)
+                carbon_ledger_service.post_document(db_session, d.id)
+
+            reduction_opportunity_service.generate_opportunities(db_session)
             db_session.commit()
     except Exception as e:
         print(f"Data integrity and backfill notice: {e}")

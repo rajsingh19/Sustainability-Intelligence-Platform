@@ -1003,7 +1003,7 @@ def delete_document(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Delete an owned document and its stored PDF from disk.
+    Delete an owned document and its stored PDF from disk, cleanly removing associated records.
     """
     doc = get_owned_document(db, document_id, current_user)
 
@@ -1012,6 +1012,27 @@ def delete_document(
             os.remove(doc.file_path)
         except OSError:
             pass
+
+    # Clean up associated child records across tables
+    from backend.app.models.proactive_agent import AgentAction, AgentActionEvent
+    from backend.app.models.reduction_intelligence import ReductionPriority
+    from backend.app.models.reduction_roadmap import ReductionRoadmap, ReductionRoadmapItem
+    from backend.app.models.emission_scenario import EmissionScenario
+    from backend.app.models.carbon_credit import CarbonCreditEvidence
+
+    action_ids = [a.id for a in db.query(AgentAction).filter(AgentAction.document_id == document_id).all()]
+    if action_ids:
+        db.query(AgentActionEvent).filter(AgentActionEvent.action_id.in_(action_ids)).delete(synchronize_session=False)
+        db.query(AgentAction).filter(AgentAction.id.in_(action_ids)).delete(synchronize_session=False)
+
+    db.query(SustainabilityMetric).filter(SustainabilityMetric.document_id == document_id).delete(synchronize_session=False)
+    db.query(ActivityData).filter(ActivityData.document_id == document_id).delete(synchronize_session=False)
+    db.query(CarbonCalculation).filter(CarbonCalculation.document_id == document_id).delete(synchronize_session=False)
+    db.query(CarbonLedgerEntry).filter(CarbonLedgerEntry.document_id == document_id).delete(synchronize_session=False)
+    db.query(AuditLog).filter(AuditLog.document_id == document_id).delete(synchronize_session=False)
+    db.query(ReductionPriority).filter(ReductionPriority.document_id == document_id).delete(synchronize_session=False)
+    db.query(EmissionScenario).filter(EmissionScenario.document_id == document_id).delete(synchronize_session=False)
+    db.query(CarbonCreditEvidence).filter(CarbonCreditEvidence.document_id == document_id).delete(synchronize_session=False)
 
     db.delete(doc)
     db.commit()

@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Upload, FileText, CheckCircle2, AlertCircle, X, Loader2 } from 'lucide-react';
-import { uploadDocument } from '../services/api';
+import { uploadDocument, getAuthToken, getDemoToken } from '../services/api';
 
 export default function UploadDocument({ onUploadSuccess, onCancel }) {
   const [file, setFile] = useState(null);
@@ -72,7 +72,21 @@ export default function UploadDocument({ onUploadSuccess, onCancel }) {
     }, 750);
 
     try {
-      const result = await uploadDocument(file, true, forceOcr);
+      if (!getAuthToken()) {
+        await getDemoToken().catch(() => {});
+      }
+      let result;
+      try {
+        result = await uploadDocument(file, true, forceOcr);
+      } catch (uploadErr) {
+        if (uploadErr.response?.status === 401) {
+          // Attempt refreshing demo token and retry once
+          await getDemoToken();
+          result = await uploadDocument(file, true, forceOcr);
+        } else {
+          throw uploadErr;
+        }
+      }
       clearInterval(stepInterval);
       setProcessStep(4);
       setTimeout(() => {

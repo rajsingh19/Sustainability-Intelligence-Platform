@@ -8,7 +8,7 @@ from typing import List, Optional
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import desc, or_
 
 from backend.app.database.session import get_db
 from backend.app.models.user import User
@@ -58,7 +58,7 @@ def run_agent(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Agent evaluation failed: {str(e)}"
+            detail=f"Agent execution failed: {str(e)}"
         )
 
 
@@ -96,9 +96,14 @@ def get_agent_status(
     if is_auth_dev_mode():
         base_q = db.query(AgentAction)
     else:
-        base_q = db.query(AgentAction).join(
+        base_q = db.query(AgentAction).outerjoin(
             Document, AgentAction.document_id == Document.id
-        ).filter(Document.user_id == current_user.id)
+        ).filter(
+            or_(
+                AgentAction.document_id.is_(None),
+                Document.user_id == current_user.id
+            )
+        )
 
     total = base_q.count()
     open_cnt = base_q.filter(AgentAction.status == "OPEN").count()
@@ -142,7 +147,7 @@ def list_actions(
     action_queue: Optional[str] = Query(None),
     dependency_status: Optional[str] = Query(None),
     document_id: Optional[int] = Query(None),
-    limit: int = Query(100, ge=1, le=500),
+    limit: int = Query(500, ge=1, le=1000),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -153,9 +158,14 @@ def list_actions(
     if is_auth_dev_mode():
         query = db.query(AgentAction)
     else:
-        query = db.query(AgentAction).join(
+        query = db.query(AgentAction).outerjoin(
             Document, AgentAction.document_id == Document.id
-        ).filter(Document.user_id == current_user.id)
+        ).filter(
+            or_(
+                AgentAction.document_id.is_(None),
+                Document.user_id == current_user.id
+            )
+        )
 
     if document_id is not None:
         get_owned_document(db, document_id, current_user)
@@ -182,9 +192,14 @@ def list_actions(
     if is_auth_dev_mode():
         base_q = db.query(AgentAction)
     else:
-        base_q = db.query(AgentAction).join(
+        base_q = db.query(AgentAction).outerjoin(
             Document, AgentAction.document_id == Document.id
-        ).filter(Document.user_id == current_user.id)
+        ).filter(
+            or_(
+                AgentAction.document_id.is_(None),
+                Document.user_id == current_user.id
+            )
+        )
     if document_id:
         base_q = base_q.filter(AgentAction.document_id == document_id)
 
@@ -207,6 +222,14 @@ def list_actions(
     }
 
 
+def _verify_action_access(db: Session, action: AgentAction, current_user: User):
+    from backend.app.services.auth import is_auth_dev_mode
+    if is_auth_dev_mode():
+        return
+    if action.document_id is not None:
+        get_owned_document(db, action.document_id, current_user)
+
+
 @router.get("/actions/{action_id}", response_model=AgentActionResponse)
 def get_action(
     action_id: int,
@@ -219,8 +242,7 @@ def get_action(
     action = db.query(AgentAction).filter(AgentAction.id == action_id).first()
     if not action:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"AgentAction #{action_id} not found.")
-    if action.document_id is not None:
-        get_owned_document(db, action.document_id, current_user)
+    _verify_action_access(db, action, current_user)
     return action.to_dict()
 
 
@@ -237,8 +259,7 @@ def patch_action(
     action = db.query(AgentAction).filter(AgentAction.id == action_id).first()
     if not action:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"AgentAction #{action_id} not found.")
-    if action.document_id is not None:
-        get_owned_document(db, action.document_id, current_user)
+    _verify_action_access(db, action, current_user)
 
     if payload.due_context is not None:
         action.due_context = payload.due_context
@@ -268,8 +289,7 @@ def start_action(
     action = db.query(AgentAction).filter(AgentAction.id == action_id).first()
     if not action:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"AgentAction #{action_id} not found.")
-    if action.document_id is not None:
-        get_owned_document(db, action.document_id, current_user)
+    _verify_action_access(db, action, current_user)
     try:
         action = proactive_agent_service.start_action(
             db=db, action_id=action_id, actor_type="USER", reason=reason
@@ -292,8 +312,7 @@ def complete_action(
     action = db.query(AgentAction).filter(AgentAction.id == action_id).first()
     if not action:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"AgentAction #{action_id} not found.")
-    if action.document_id is not None:
-        get_owned_document(db, action.document_id, current_user)
+    _verify_action_access(db, action, current_user)
     try:
         action = proactive_agent_service.complete_action(
             db=db, action_id=action_id, actor_type="USER", reason=reason
@@ -316,8 +335,7 @@ def dismiss_action(
     action = db.query(AgentAction).filter(AgentAction.id == action_id).first()
     if not action:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"AgentAction #{action_id} not found.")
-    if action.document_id is not None:
-        get_owned_document(db, action.document_id, current_user)
+    _verify_action_access(db, action, current_user)
     try:
         action = proactive_agent_service.dismiss_action(
             db=db, action_id=action_id, actor_type="USER", reason=reason
@@ -339,8 +357,7 @@ def list_action_events(
     action = db.query(AgentAction).filter(AgentAction.id == action_id).first()
     if not action:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"AgentAction #{action_id} not found.")
-    if action.document_id is not None:
-        get_owned_document(db, action.document_id, current_user)
+    _verify_action_access(db, action, current_user)
 
     events = db.query(AgentActionEvent).filter(
         AgentActionEvent.action_id == action_id
@@ -364,8 +381,7 @@ def explain_action(
     action = db.query(AgentAction).filter(AgentAction.id == action_id).first()
     if not action:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"AgentAction #{action_id} not found.")
-    if action.document_id is not None:
-        get_owned_document(db, action.document_id, current_user)
+    _verify_action_access(db, action, current_user)
     try:
         explanation = proactive_agent_service.explain_action(db=db, action_id=action_id)
         return explanation

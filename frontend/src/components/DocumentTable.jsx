@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   FileText,
   Eye,
@@ -29,19 +30,71 @@ export default function DocumentTable({
   onOpenUpload,
   loadingActionId
 }) {
-  const [activeMenuId, setActiveMenuId] = useState(null);
+  const [activeMenu, setActiveMenu] = useState(null); // { doc, top, left, openUpward }
   const menuRef = useRef(null);
+  const activeTriggerRef = useRef(null);
 
-  // Close 3-dot menu on click outside
+  // Close 3-dot menu on click outside, scroll, resize, or Escape
   useEffect(() => {
+    const handleClose = () => setActiveMenu(null);
+
     const handleClickOutside = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        setActiveMenuId(null);
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(e.target) &&
+        activeTriggerRef.current &&
+        !activeTriggerRef.current.contains(e.target)
+      ) {
+        setActiveMenu(null);
       }
     };
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setActiveMenu(null);
+      }
+    };
+
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('scroll', handleClose, true);
+    window.addEventListener('resize', handleClose);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('scroll', handleClose, true);
+      window.removeEventListener('resize', handleClose);
+    };
   }, []);
+
+  const handleToggleMenu = (e, doc) => {
+    e.stopPropagation();
+    if (activeMenu?.doc?.id === doc.id) {
+      setActiveMenu(null);
+      activeTriggerRef.current = null;
+      return;
+    }
+
+    const button = e.currentTarget;
+    activeTriggerRef.current = button;
+    const rect = button.getBoundingClientRect();
+    const menuWidth = 176;
+    const menuHeight = 126;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const openUpward = spaceBelow < menuHeight + 12 && rect.top > menuHeight + 12;
+
+    let top = openUpward ? rect.top - menuHeight - 6 : rect.bottom + 6;
+    let left = rect.right - menuWidth;
+
+    if (left < 10) left = 10;
+    if (left + menuWidth > window.innerWidth - 10) {
+      left = window.innerWidth - menuWidth - 10;
+    }
+    if (top < 10) top = 10;
+
+    setActiveMenu({ doc, top, left, openUpward });
+  };
 
   const getStatusBadge = (doc) => {
     const status = doc.status;
@@ -150,7 +203,7 @@ export default function DocumentTable({
     <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
       
       {/* Table Content */}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto min-h-[160px]">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
@@ -164,13 +217,14 @@ export default function DocumentTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 text-xs">
-            {documents.map((doc) => {
+            {documents.map((doc, index) => {
               const quality = doc.quality_score != null ? Math.round(doc.quality_score) : null;
               const qualityInfo = getQualityLabel(quality);
               const period = doc.reporting_period || doc.structured_data?.period?.billing_month || '—';
               const docType = doc.document_type || 'Utility Bill';
               const isSample = doc.original_filename?.toLowerCase().includes('sample') || doc.filename?.toLowerCase().includes('sample');
               const isActionLoading = loadingActionId === doc.id;
+              const openUpward = documents.length > 2 && index >= documents.length - 1;
 
               return (
                 <tr 
@@ -248,66 +302,31 @@ export default function DocumentTable({
                   <td className="py-3.5 px-4 text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end space-x-1.5">
                       <button
+                        type="button"
                         onClick={() => onSelectDocument(doc)}
                         className="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-slate-700 text-xs font-semibold transition-colors shadow-2xs hover:border-slate-300"
                       >
                         View
                       </button>
 
-                      {/* 3-Dot Action Menu */}
-                      <div className="relative" ref={activeMenuId === doc.id ? menuRef : null}>
-                        <button
-                          onClick={() => setActiveMenuId(activeMenuId === doc.id ? null : doc.id)}
-                          disabled={isActionLoading}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-                          title="More options"
-                        >
-                          {isActionLoading ? (
-                            <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#0F6B56]" />
-                          ) : (
-                            <MoreVertical className="w-3.5 h-3.5" />
-                          )}
-                        </button>
-
-                        {activeMenuId === doc.id && (
-                          <div className="absolute right-0 top-full mt-1 w-44 bg-white border border-slate-200 rounded-xl shadow-xl z-30 py-1 text-xs text-slate-700 animate-dropdown space-y-0.5">
-                            <button
-                              onClick={() => {
-                                setActiveMenuId(null);
-                                onSelectDocument(doc);
-                              }}
-                              className="w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center space-x-2 text-slate-700"
-                            >
-                              <Eye className="w-3.5 h-3.5 text-slate-400" />
-                              <span>View Detail</span>
-                            </button>
-
-                            <button
-                              onClick={() => {
-                                setActiveMenuId(null);
-                                onReprocessDocument(doc.id, false);
-                              }}
-                              className="w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center space-x-2 text-slate-700"
-                            >
-                              <RefreshCw className="w-3.5 h-3.5 text-slate-400" />
-                              <span>Reprocess OCR</span>
-                            </button>
-
-                            <div className="border-t border-slate-100 my-1" />
-
-                            <button
-                              onClick={() => {
-                                setActiveMenuId(null);
-                                onDeleteDocument(doc.id);
-                              }}
-                              className="w-full text-left px-3 py-1.5 hover:bg-rose-50 text-rose-600 flex items-center space-x-2 font-medium"
-                            >
-                              <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-                              <span>Delete Document</span>
-                            </button>
-                          </div>
+                      {/* 3-Dot Action Menu Trigger */}
+                      <button
+                        type="button"
+                        onClick={(e) => handleToggleMenu(e, doc)}
+                        disabled={isActionLoading}
+                        className={`p-1.5 rounded-lg transition-colors focus:outline-hidden ${
+                          activeMenu?.doc?.id === doc.id
+                            ? 'bg-slate-100 text-slate-700'
+                            : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+                        }`}
+                        title="More options"
+                      >
+                        {isActionLoading ? (
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#0F6B56]" />
+                        ) : (
+                          <MoreVertical className="w-3.5 h-3.5" />
                         )}
-                      </div>
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -352,6 +371,65 @@ export default function DocumentTable({
         </div>
       )}
 
+      {/* Portal-rendered 3-Dot Action Menu (Escapes table overflow context) */}
+      {activeMenu && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={menuRef}
+          style={{
+            position: 'fixed',
+            top: `${activeMenu.top}px`,
+            left: `${activeMenu.left}px`,
+            width: '176px',
+            zIndex: 9999,
+          }}
+          className={`bg-white border border-slate-200 rounded-xl shadow-xl py-1 text-xs text-slate-700 animate-dropdown space-y-0.5 ${
+            activeMenu.openUpward ? 'origin-bottom-right' : 'origin-top-right'
+          }`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            onClick={() => {
+              const doc = activeMenu.doc;
+              setActiveMenu(null);
+              onSelectDocument(doc);
+            }}
+            className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center space-x-2 text-slate-700 transition-colors"
+          >
+            <Eye className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <span>View Detail</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              const doc = activeMenu.doc;
+              setActiveMenu(null);
+              onReprocessDocument(doc.id, false);
+            }}
+            className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center space-x-2 text-slate-700 transition-colors"
+          >
+            <RefreshCw className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <span>Reprocess OCR</span>
+          </button>
+
+          <div className="border-t border-slate-100 my-1" />
+
+          <button
+            type="button"
+            onClick={() => {
+              const doc = activeMenu.doc;
+              setActiveMenu(null);
+              onDeleteDocument(doc.id);
+            }}
+            className="w-full text-left px-3 py-2 hover:bg-rose-50 text-rose-600 flex items-center space-x-2 font-medium transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+            <span>Delete Document</span>
+          </button>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

@@ -24,7 +24,8 @@ import {
   Bot,
   ExternalLink,
   HelpCircle,
-  FileCheck
+  FileCheck,
+  Clock
 } from 'lucide-react';
 import { NAV_GROUPS, getActiveGroupId } from '../config/navigation';
 
@@ -43,6 +44,10 @@ const ICON_MAP = {
   BookOpen,
   ShieldCheck,
   FolderKanban,
+  Sparkles,
+  Clock,
+  CheckCircle2,
+  Activity
 };
 
 export default function Navbar({
@@ -90,7 +95,11 @@ export default function Navbar({
   const handleNavClick = (item) => {
     setOpenDropdown(null);
     setMobileMenuOpen(false);
-    onSelectTab(item.tab || item.id);
+    if (item.isAction && item.actionType === 'OPEN_AI_DRAWER') {
+      if (onOpenAiDrawer) onOpenAiDrawer();
+      return;
+    }
+    onSelectTab(item.tab || item.id, item.statusFilter);
   };
 
   const handleGroupToggle = (groupId) => {
@@ -121,56 +130,76 @@ export default function Navbar({
             {/* Desktop Navigation Groups */}
             <nav className="hidden md:flex items-center space-x-1">
               {NAV_GROUPS.map((group) => {
-                if (group.type === 'link') {
-                  const isActive = activeGroupId === group.id || activeTab === group.tab;
+                const isGroupActive = activeGroupId === group.id;
+                const isDropdownOpen = openDropdown === group.id;
+
+                if (!group.hasDropdown) {
+                  const IconComponent = typeof group.icon === 'function' ? group.icon : (ICON_MAP[group.icon] || null);
                   return (
                     <button
                       key={group.id}
                       onClick={() => handleNavClick(group)}
                       className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-                        isActive
+                        isGroupActive
                           ? 'bg-[#EAF7F2] text-[#0F6B56]'
                           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                       }`}
                     >
-                      {group.id === 'documents' && <FileText className="w-3.5 h-3.5" />}
-                      {group.id === 'ai-assistant' && <Sparkles className="w-3.5 h-3.5 text-[#0F6B56]" />}
+                      {IconComponent && <IconComponent className="w-3.5 h-3.5" />}
                       <span>{group.label}</span>
                     </button>
                   );
                 }
 
-                // Dropdown Group
-                const isGroupActive = activeGroupId === group.id;
-                const isDropdownOpen = openDropdown === group.id;
-
                 return (
                   <div key={group.id} className="relative">
-                    <button
-                      onClick={() => handleGroupToggle(group.id)}
-                      className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1 ${
-                        isGroupActive
-                          ? 'bg-[#EAF7F2] text-[#0F6B56]'
-                          : isDropdownOpen
-                          ? 'bg-slate-100 text-slate-900'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                      }`}
-                      aria-expanded={isDropdownOpen}
-                    >
-                      <span>{group.label}</span>
-                      <ChevronDown
-                        className={`w-3.5 h-3.5 transition-transform duration-150 ${
-                          isDropdownOpen ? 'rotate-180 text-slate-900' : 'text-slate-400'
+                    <div className="flex items-center">
+                      <button
+                        onClick={() => {
+                          if (group.tab) {
+                            handleNavClick({ tab: group.tab, path: group.path });
+                          } else {
+                            handleGroupToggle(group.id);
+                          }
+                        }}
+                        className={`px-2.5 py-1.5 rounded-l-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                          isGroupActive
+                            ? 'bg-[#EAF7F2] text-[#0F6B56]'
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                         }`}
-                      />
-                    </button>
+                      >
+                        {group.id === 'documents' && <FileText className="w-3.5 h-3.5" />}
+                        <span>{group.label}</span>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleGroupToggle(group.id);
+                        }}
+                        className={`px-1.5 py-1.5 rounded-r-md text-xs font-semibold transition-colors ${
+                          isGroupActive
+                            ? 'bg-[#EAF7F2] text-[#0F6B56]'
+                            : isDropdownOpen
+                            ? 'bg-slate-100 text-slate-900'
+                            : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                        }`}
+                        aria-expanded={isDropdownOpen}
+                        title={`Open ${group.label} menu`}
+                      >
+                        <ChevronDown
+                          className={`w-3.5 h-3.5 transition-transform duration-150 ${
+                            isDropdownOpen ? 'rotate-180 text-slate-900' : 'text-slate-400'
+                          }`}
+                        />
+                      </button>
+                    </div>
 
                     {/* Dropdown Menu */}
                     {isDropdownOpen && (
-                      <div className="absolute left-0 top-full mt-1.5 w-72 bg-white border border-slate-200 rounded-xl shadow-lg z-50 p-1.5 animate-dropdown space-y-0.5">
+                      <div className="absolute left-0 top-full mt-1.5 w-80 bg-white border border-slate-200 rounded-xl shadow-lg z-50 p-1.5 animate-dropdown space-y-0.5">
                         {group.items.map((item) => {
                           const isItemActive = activeTab === item.tab || activeTab === item.id;
-                          const IconComponent = ICON_MAP[item.icon] || FileText;
+                          const IconComponent = typeof item.icon === 'function' ? item.icon : (ICON_MAP[item.icon] || FileText);
 
                           return (
                             <button
@@ -193,10 +222,25 @@ export default function Navbar({
                               </div>
                               <div className="min-w-0 flex-1">
                                 <div className="text-xs font-semibold flex items-center justify-between">
-                                  <span>{item.label}</span>
-                                  {isItemActive && (
-                                    <span className="w-1.5 h-1.5 rounded-full bg-[#0F6B56]" />
-                                  )}
+                                  <span className="truncate">{item.label}</span>
+                                  <div className="flex items-center space-x-1 shrink-0 ml-1.5">
+                                    {item.badge && (
+                                      <span
+                                        className={`px-1.5 py-0.2 rounded text-[10px] font-semibold ${
+                                          item.badgeColor === 'emerald'
+                                            ? 'bg-emerald-100 text-emerald-800'
+                                            : item.badgeColor === 'amber'
+                                            ? 'bg-amber-100 text-amber-800'
+                                            : 'bg-slate-100 text-slate-700'
+                                        }`}
+                                      >
+                                        {item.badge}
+                                      </span>
+                                    )}
+                                    {isItemActive && (
+                                      <span className="w-1.5 h-1.5 rounded-full bg-[#0F6B56]" />
+                                    )}
+                                  </div>
                                 </div>
                                 {item.description && (
                                   <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">
@@ -217,18 +261,6 @@ export default function Navbar({
 
           {/* Right Controls */}
           <div className="flex items-center space-x-2.5 shrink-0">
-            {/* Global Ask AI Button */}
-            {onOpenAiDrawer && (
-              <button
-                onClick={onOpenAiDrawer}
-                className="hidden sm:inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-md bg-[#EAF7F2] hover:bg-[#d5f3e9] text-[#0F6B56] border border-[#c4eedf] text-xs font-semibold transition-colors shadow-2xs"
-                title="Open Senseible AI Assistant"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-[#0F6B56]" />
-                <span>Ask AI</span>
-              </button>
-            )}
-
             {/* Sample PDFs Dropdown */}
             {onSeedSample && (
               <div className="relative">
@@ -332,25 +364,12 @@ export default function Navbar({
       {/* Mobile Drawer Navigation */}
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-slate-200 bg-white px-4 pt-3 pb-6 space-y-3 animate-dropdown max-h-[85vh] overflow-y-auto">
-          {/* Mobile Ask AI Trigger */}
-          {onOpenAiDrawer && (
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                onOpenAiDrawer();
-              }}
-              className="w-full py-2.5 px-3 rounded-lg bg-[#EAF7F2] text-[#0F6B56] border border-[#c4eedf] text-xs font-semibold flex items-center justify-center space-x-2"
-            >
-              <Sparkles className="w-4 h-4" />
-              <span>Ask AI Assistant</span>
-            </button>
-          )}
-
           {/* Navigation Groups */}
           <div className="space-y-1">
             {NAV_GROUPS.map((group) => {
               if (group.type === 'link') {
                 const isActive = activeGroupId === group.id || activeTab === group.tab;
+                const IconComponent = typeof group.icon === 'function' ? group.icon : (ICON_MAP[group.icon] || null);
                 return (
                   <button
                     key={group.id}
@@ -359,7 +378,10 @@ export default function Navbar({
                       isActive ? 'bg-[#EAF7F2] text-[#0F6B56]' : 'text-slate-700 hover:bg-slate-50'
                     }`}
                   >
-                    <span>{group.label}</span>
+                    <div className="flex items-center space-x-2">
+                      {IconComponent && <IconComponent className="w-3.5 h-3.5 text-slate-500 shrink-0" />}
+                      <span>{group.label}</span>
+                    </div>
                     {isActive && <span className="w-1.5 h-1.5 rounded-full bg-[#0F6B56]" />}
                   </button>
                 );
@@ -384,7 +406,7 @@ export default function Navbar({
                     <div className="bg-slate-50 px-2 py-1.5 space-y-1">
                       {group.items.map((item) => {
                         const isItemActive = activeTab === item.tab || activeTab === item.id;
-                        const IconComponent = ICON_MAP[item.icon] || FileText;
+                        const IconComponent = typeof item.icon === 'function' ? item.icon : (ICON_MAP[item.icon] || FileText);
 
                         return (
                           <button

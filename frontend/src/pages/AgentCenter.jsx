@@ -55,7 +55,7 @@ export default function AgentCenter({ onSelectDocument, onOpenCopilotQuery }) {
       setLoading(true);
       const [briefData, actionsData, benchData] = await Promise.all([
         getAgentBrief(),
-        getAgentActions({ limit: 100 }),
+        getAgentActions({ limit: 500 }),
         getBenchmarkSummary().catch(() => null)
       ]);
       setBrief(briefData);
@@ -138,10 +138,16 @@ export default function AgentCenter({ onSelectDocument, onOpenCopilotQuery }) {
 
   // Filter actions for the table
   const filteredActions = actions.filter((act) => {
-    if (selectedQueue !== 'ALL' && act.queue_type !== selectedQueue) return false;
-    if (selectedStatus === 'ACTIVE' && !['OPEN', 'IN_PROGRESS'].includes(act.status)) return false;
-    if (selectedStatus !== 'ACTIVE' && selectedStatus !== 'ALL' && act.status !== selectedStatus) return false;
-    if (selectedPriority !== 'ALL' && act.priority !== selectedPriority) return false;
+    const qType = (act.queue_type || act.action_queue || '').toUpperCase();
+    if (selectedQueue !== 'ALL' && qType !== selectedQueue.toUpperCase()) return false;
+
+    const actStatus = (act.status || '').toUpperCase();
+    if (selectedStatus === 'ACTIVE' && !['OPEN', 'IN_PROGRESS'].includes(actStatus)) return false;
+    if (selectedStatus !== 'ACTIVE' && selectedStatus !== 'ALL' && actStatus !== selectedStatus.toUpperCase()) return false;
+
+    const actPriority = (act.priority || act.priority_level || '').toUpperCase();
+    if (selectedPriority !== 'ALL' && actPriority !== selectedPriority.toUpperCase()) return false;
+
     return true;
   });
 

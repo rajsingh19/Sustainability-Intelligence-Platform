@@ -26,7 +26,7 @@ import Metrics from './pages/Metrics';
 import AskAIDrawer from './components/copilot/AskAIDrawer';
 import { Sparkles } from 'lucide-react';
 
-import { getDocuments, getStats, getHealth, getDocument, seedSampleDocument, deleteDocument, processDocument, getAttentionItems } from './services/api';
+import { getDocuments, getStats, getHealth, getDocument, seedSampleDocument, deleteDocument, processDocument, getAttentionItems, getAuthToken, getDemoToken } from './services/api';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('documents'); // 'documents' | 'metrics' | 'emission-factors' | 'carbon-ledger' | 'compliance-reports'
@@ -268,6 +268,12 @@ export default function App() {
   useEffect(() => {
     resolveRoute(window.location.pathname);
 
+    // Auto-initialize demo authentication token if none exists
+    const token = getAuthToken();
+    if (!token) {
+      getDemoToken().catch((err) => console.warn('Could not auto-fetch demo token:', err));
+    }
+
     const handlePopState = () => {
       resolveRoute(window.location.pathname);
     };
@@ -383,12 +389,15 @@ export default function App() {
     }
   };
 
-  const handleNavTab = (tab) => {
+  const handleNavTab = (tab, filter = null) => {
     setSelectedDocument(null);
     setReportDocId(null);
     setComplianceReportId(null);
     setGreenFinanceAssessmentId(null);
     setCarbonCreditAssessmentId(null);
+    if (filter !== null && filter !== undefined) {
+      setStatusFilter(filter);
+    }
     setActiveTab(tab);
     if (tab === 'ai-agent') {
       window.history.pushState(null, '', '/agent');
@@ -604,7 +613,8 @@ export default function App() {
       <AskAIDrawer
         isOpen={isAiDrawerOpen}
         onClose={() => setIsAiDrawerOpen(false)}
-        document={selectedDocument}
+        activeDocument={selectedDocument}
+        onNavigateToDocument={handleSelectDocument}
       />
 
     </div>
